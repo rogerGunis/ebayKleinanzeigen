@@ -4,7 +4,7 @@
 
 * config.json (from config.json.example)
 * geckodriver (to /usr/local/bin): https://github.com/mozilla/geckodriver/releases
-* selenium: ```pip install selenium```
+* Python packages: ```pip install selenium python-dateutil```
 
 ## Features
 
