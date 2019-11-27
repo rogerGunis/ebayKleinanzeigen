@@ -426,7 +426,7 @@ if __name__ == '__main__':
         and ad["enabled"] == "1":
             if "date_published" in ad:
                 log.info("\tAlready published (%d days ago)" % dtDiff.days)
-                if dtDiff.days > 4:
+                if dtDiff.days > int(config.get('glob_update_after_days')):
                     fNeedsUpdate = True
             else:
                 log.info("\tNot published yet")
