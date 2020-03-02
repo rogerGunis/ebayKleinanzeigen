@@ -426,7 +426,20 @@ if __name__ == '__main__':
         and ad["enabled"] == "1":
             if "date_published" in ad:
                 log.info("\tAlready published (%d days ago)" % dtDiff.days)
-                if dtDiff.days > int(config.get('glob_update_after_days')):
+                glob_update_after_days = int(config.get('glob_update_after_days'))
+                if dtDiff.days > glob_update_after_days:
+                    log.info("\tCustom global update interval (%d days) set and needs to be updated" % \
+                             glob_update_after_days)
+                    fNeedsUpdate = True
+
+                ad_update_after_days = 0
+                if "update_after_days" in ad:
+                    ad_update_after_days = int(ad["update_after_days"])
+
+                if  ad_update_after_days != 0 \
+                and dtDiff.days > ad_update_after_days:
+                    log.info("\tAd has a specific update interval (%d days) and needs to be updated" % \
+                             ad_update_after_days)
                     fNeedsUpdate = True
             else:
                 log.info("\tNot published yet")
