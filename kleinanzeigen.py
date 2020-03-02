@@ -101,7 +101,7 @@ def delete_ad(driver, ad):
         try:
             adIdElem = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
             adId     = adIdElem.get_attribute("data-adid")
-            log.info("\tAd ID is %s" % adId)            
+            log.info("\tAd ID is %s" % adId)
         except NoSuchElementException as e:
             log.info("\tNot found by title")
 
@@ -252,16 +252,19 @@ def post_ad(driver, ad, fInteractive):
         fileup = driver.find_element_by_xpath("//input[@type='file']")
         for path in ad["photofiles"]:
             path_abs = config["glob_photo_path"] + path
-            uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
             log.debug("\tUploading image: %s" % path_abs)
-            fileup.send_keys(os.path.abspath(path_abs))
-            total_upload_time = 0
-            while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
-                            total_upload_time < 30:
-                fake_wait()
-                total_upload_time += 0.5
+            if os.path.exists(path_abs):
+                uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
+                fileup.send_keys(os.path.abspath(path_abs))
+                total_upload_time = 0
+                while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
+                                total_upload_time < 30:
+                    fake_wait()
+                    total_upload_time += 0.5
 
-            log.debug("\tUploaded file in %s seconds" % total_upload_time)
+                log.debug("\tUploaded file in %s seconds" % total_upload_time)
+            else:
+                log.debug("\tFile does NOT exist, skipping!")
     except NoSuchElementException:
         pass
 
@@ -408,7 +411,7 @@ if __name__ == '__main__':
         driver = session_create(config)
         profile_write(sProfile, config)
         login(driver, config)
-        fake_wait(randint(12222, 17777))        
+        fake_wait(randint(12222, 17777))
 
     for ad in config["ads"]:
 
@@ -458,7 +461,7 @@ if __name__ == '__main__':
                 break
 
             log.info("Waiting for handling next ad ...")
-            fake_wait(randint(12222, 17777))            
+            fake_wait(randint(12222, 17777))
 
         profile_write(sProfile, config)
 
