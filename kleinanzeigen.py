@@ -18,10 +18,13 @@ import time
 import urlparse
 from random import randint
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import logging
 from datetime import datetime
 import dateutil.parser
@@ -57,19 +60,34 @@ def login(driverr, config):
     input_email = config['glob_username']
     input_pw = config['glob_password']
     log.info("Login with account email: " + input_email)
-    driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html')
-    fake_wait()
+    driver.set_page_load_timeout(90)
+    try:
+        driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html?targetUrl=/')
+        
+        log.info('Waitng for login page ...')
 
-    text_area = driver.find_element_by_id('login-email')
-    text_area.send_keys(input_email)
-    fake_wait()
+        text_area = WebDriverWait(driver, 180).until(
+           expected_conditions.presence_of_element_located((By.ID, "login-email"))
+        )
+        text_area.send_keys(input_email)
+        fake_wait()
 
-    text_area = driver.find_element_by_id('login-password')
-    text_area.send_keys(input_pw)
-    fake_wait()
+        text_area = driver.find_element_by_id('login-password')
+        text_area.send_keys(input_pw)
+        fake_wait()
 
-    submit_button = driver.find_element_by_id('login-submit')
-    submit_button.click()
+        submit_button = driver.find_element_by_id('login-submit')
+        submit_button.click()
+    
+    except TimeoutException as e:
+        log.info("Unable to login -- loading site took too long?")
+        return False
+
+    except NoSuchElementException as e:
+        log.info("Unable to login -- Login form element(s) not found")
+        return False
+
+    return True
 
 def fake_wait(msSleep=None):
     if msSleep is None:
@@ -324,7 +342,9 @@ def session_create(config):
         if config.get('headless', False) is True:
             log.info("Headless mode")
             ff_options.add_argument("--headless")
-        driver = webdriver.Firefox(firefox_options=ff_options)
+        ff_profile = webdriver.FirefoxProfile()
+        ff_profile.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1")
+        driver = webdriver.Firefox(firefox_profile=ff_profile, firefox_options=ff_options)
     else:
         cr_options = ChromeOptions()
         cr_options.add_argument("--no-sandbox")
@@ -333,6 +353,7 @@ def session_create(config):
             cr_options.add_argument("--headless")
         cr_options.add_argument("--disable-extensions")
         cr_options.add_argument("--disable-dev-shm-usage")
+        cr_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.113 Safari/537.36")
         driver = webdriver.Chrome(chrome_options=cr_options)
 
     log.info("New session is: %s %s" % (driver.session_id, driver.command_executor._url))
