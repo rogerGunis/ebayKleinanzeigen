@@ -19,7 +19,8 @@ import urlparse
 from random import randint
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.common.exceptions import NoSuchElementException
 import logging
 from datetime import datetime
@@ -316,11 +317,23 @@ def session_create(config):
 
     log.info("Creating session")
 
-    options = Options()
-    if config.get('headless', False) is True:
-        log.info("Headless mode")
-        options.add_argument("--headless")
-    driver = webdriver.Firefox(firefox_options=options)
+    fUseFirefox = True
+
+    if fUseFirefox:
+        ff_options = FirefoxOptions()
+        if config.get('headless', False) is True:
+            log.info("Headless mode")
+            ff_options.add_argument("--headless")
+        driver = webdriver.Firefox(firefox_options=ff_options)
+    else:
+        cr_options = ChromeOptions()
+        cr_options.add_argument("--no-sandbox")
+        if config.get('headless', False) is True:
+            log.info("Headless mode")
+            cr_options.add_argument("--headless")
+        cr_options.add_argument("--disable-extensions")
+        cr_options.add_argument("--disable-dev-shm-usage")
+        driver = webdriver.Chrome(chrome_options=cr_options)
 
     log.info("New session is: %s %s" % (driver.session_id, driver.command_executor._url))
 
