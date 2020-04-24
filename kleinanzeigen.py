@@ -21,6 +21,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.chrome.options import Options as ChromeOptions
@@ -200,6 +201,16 @@ def post_ad_is_allowed(driver, ad, fInteractive):
 
     return fRc
 
+def post_ad_mandatory_combobox_select(driver, ad, sName, sValue):
+    for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
+        log.info("Detected mandatory field: '%s'" % (el.text,))
+        if sName in el.text:
+            sForId = el.get_attribute("for")
+            Select(driver.find_element_by_id(sForId)).select_by_visible_text(sValue)
+            fake_wait()
+            return True
+    return False
+
 def post_ad(driver, ad, fInteractive):
 
     log.info("\tPublishing ad '...")
@@ -215,9 +226,13 @@ def post_ad(driver, ad, fInteractive):
     fake_wait(randint(4000, 8000))
 
     # Select category
-    submit_button = driver.find_element_by_css_selector("#postad-step1-sbmt button")
-    submit_button.click()
-    fake_wait(randint(4000, 8000))
+    try:
+        submit_button = driver.find_element_by_css_selector("#postad-step1-sbmt button")
+        submit_button.click()
+        fake_wait(randint(4000, 8000))
+    except:
+        # In case category page is invalid / outdated
+        pass
 
     # Check if posting an ad is allowed / possible
     fRc = post_ad_is_allowed(driver, ad, fInteractive)
@@ -265,6 +280,9 @@ def post_ad(driver, ad, fInteractive):
         text_area.clear()
         text_area.send_keys(config["glob_street"])
         fake_wait()
+
+    # Some categories needs this
+    post_ad_mandatory_combobox_select(driver, ad, "Versand", "Nur Abholung")
 
     # Upload images
     try:
