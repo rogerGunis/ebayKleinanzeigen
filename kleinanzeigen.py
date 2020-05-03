@@ -12,6 +12,7 @@ Updated and improved by x86dev Dec 2017.
 import json
 import getopt
 import os
+import re
 import signal
 import sys
 import time
@@ -211,6 +212,33 @@ def post_ad_mandatory_combobox_select(driver, ad, sName, sValue):
             return True
     return False
 
+def post_ad_mandatory_fields_set(driver, ad):
+    for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
+        sForId = el.get_attribute("for")
+        if sForId is not None:
+            print("Detected mandatory field (Name='%s', ID='%s')" % (el.text, sForId))
+            reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
+            if reMatch is not None:
+                sForIdRaw = reMatch.group(1)
+                if sForIdRaw in ad:
+                    Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad[sForIdRaw])
+                else:
+                    print("*** Warning: No value for combo box '%s' defined, setting to default (first entry)" % (sForIdRaw,))
+                    Select(driver.find_element_by_id(sForId)).select_by_index(0)                
+                fake_wait()
+            else:
+                sForIdRaw = sForId
+                if "field_" + sForIdRaw in ad:
+                    sValue = ad["field_" + sForIdRaw]
+                else:
+                    print("*** Warning: No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
+                    sValue = 'Nicht angegeben'
+                try:
+                    driver.find_element_by_id(sForId).send_keys(sValue)
+                    fake_wait()
+                except:
+                    pass
+
 def post_ad(driver, ad, fInteractive):
 
     log.info("\tPublishing ad '...")
@@ -282,7 +310,7 @@ def post_ad(driver, ad, fInteractive):
         fake_wait()
 
     # Some categories needs this
-    post_ad_mandatory_combobox_select(driver, ad, "Versand", "Nur Abholung")
+    post_ad_mandatory_fields_set(driver, ad)
 
     # Upload images
     try:
