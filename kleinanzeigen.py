@@ -221,11 +221,25 @@ def post_ad_mandatory_fields_set(driver, ad):
                 reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
                 if reMatch is not None:
                     sForIdRaw = reMatch.group(1)
-                    if sForIdRaw in ad:
-                        Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad[sForIdRaw])
+                    fUseDefault = False
+                    if "field_" + sForIdRaw in ad:
+                        try:
+                            Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad["field_" + sForIdRaw])
+                        except:
+                            log.info("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)" % (sForIdRaw,))
+                            fUseDefault = True
                     else:
                         log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)" % (sForIdRaw,))
-                        Select(driver.find_element_by_id(sForId)).select_by_index(0)                
+                        fUseDefault = True
+                    if fUseDefault:
+                        s = Select(driver.find_element_by_id(sForId))
+                        iOpt = 0
+                        for o in s.options:
+                            # Skip empty options (defaults?)
+                            if len(o.get_attribute("value")):
+                                break
+                            iOpt += 1
+                        s.select_by_value(s.options[iOpt].get_attribute("value"))                
                     fake_wait()
                 else:
                     sForIdRaw = sForId
