@@ -214,30 +214,33 @@ def post_ad_mandatory_combobox_select(driver, ad, sName, sValue):
 
 def post_ad_mandatory_fields_set(driver, ad):
     for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
-        sForId = el.get_attribute("for")
-        if sForId is not None:
-            print("Detected mandatory field (Name='%s', ID='%s')" % (el.text, sForId))
-            reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
-            if reMatch is not None:
-                sForIdRaw = reMatch.group(1)
-                if sForIdRaw in ad:
-                    Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad[sForIdRaw])
-                else:
-                    print("*** Warning: No value for combo box '%s' defined, setting to default (first entry)" % (sForIdRaw,))
-                    Select(driver.find_element_by_id(sForId)).select_by_index(0)                
-                fake_wait()
-            else:
-                sForIdRaw = sForId
-                if "field_" + sForIdRaw in ad:
-                    sValue = ad["field_" + sForIdRaw]
-                else:
-                    print("*** Warning: No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
-                    sValue = 'Nicht angegeben'
-                try:
-                    driver.find_element_by_id(sForId).send_keys(sValue)
+        try:
+            sForId = el.get_attribute("for")
+            if sForId is not None:
+                log.info("Detected mandatory field (Name='%s', ID='%s')" % (el.text, sForId))
+                reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
+                if reMatch is not None:
+                    sForIdRaw = reMatch.group(1)
+                    if sForIdRaw in ad:
+                        Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad[sForIdRaw])
+                    else:
+                        log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)" % (sForIdRaw,))
+                        Select(driver.find_element_by_id(sForId)).select_by_index(0)                
                     fake_wait()
-                except:
-                    pass
+                else:
+                    sForIdRaw = sForId
+                    if "field_" + sForIdRaw in ad:
+                        sValue = ad["field_" + sForIdRaw]
+                    else:
+                        log.info("*** Warning: No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
+                        sValue = 'Nicht angegeben'
+                    try:
+                        driver.find_element_by_id(sForId).send_keys(sValue)
+                        fake_wait()
+                    except:
+                        pass
+        except:
+            pass
 
 def post_ad(driver, ad, fInteractive):
 
@@ -267,14 +270,19 @@ def post_ad(driver, ad, fInteractive):
     if fRc is False:
         return fRc
 
+    # Some categories needs this
+    post_ad_mandatory_fields_set(driver, ad)
+
     # Fill form
     text_area = driver.find_element_by_id('postad-title')
+    text_area.clear()
     text_area.send_keys(ad["title"])
     fake_wait()
 
     text_area = driver.find_element_by_id('pstad-descrptn')
     desc = config['glob_ad_prefix'] + ad["desc"] + config['glob_ad_suffix']
     desc_list = [x.strip('\\n') for x in desc.split('\\n')]
+    text_area.clear() 
     for p in desc_list:
         text_area.send_keys(p)
         text_area.send_keys(Keys.RETURN)
@@ -282,6 +290,7 @@ def post_ad(driver, ad, fInteractive):
     fake_wait()
 
     text_area = driver.find_element_by_id('pstad-price')
+    text_area.clear()
     text_area.send_keys(ad["price"])
     price = driver.find_element_by_xpath("//input[@name='priceType' and @value='%s']" % ad["price_type"])
     price.click()
@@ -308,9 +317,6 @@ def post_ad(driver, ad, fInteractive):
         text_area.clear()
         text_area.send_keys(config["glob_street"])
         fake_wait()
-
-    # Some categories needs this
-    post_ad_mandatory_fields_set(driver, ad)
 
     # Upload images
     try:
