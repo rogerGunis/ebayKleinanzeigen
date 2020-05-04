@@ -67,7 +67,7 @@ def login(driverr, config):
     driver.set_page_load_timeout(90)
     try:
         driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html?targetUrl=/')
-        
+
         log.info('Waitng for login page ...')
 
         text_area = WebDriverWait(driver, 180).until(
@@ -82,7 +82,7 @@ def login(driverr, config):
 
         submit_button = driver.find_element_by_id('login-submit')
         submit_button.click()
-    
+
     except TimeoutException as e:
         log.info("Unable to login -- loading site took too long?")
         return False
@@ -241,7 +241,7 @@ def post_ad_mandatory_fields_set(driver, ad):
                             if len(o.get_attribute("value")):
                                 break
                             iOpt += 1
-                        s.select_by_value(s.options[iOpt].get_attribute("value"))                
+                        s.select_by_value(s.options[iOpt].get_attribute("value"))
                     fake_wait()
                 else:
                     sForIdRaw = sForId
@@ -279,13 +279,20 @@ def post_ad(driver, ad, fInteractive):
     if fRc is False:
         return fRc
 
+    # Find out where we are; might be some A/B testing the site does ...
+    try:
+        e = driver.find_element_by_id('pstad-lnk-chngeCtgry')
+        if e:
+            e.click()
+    except:
+        pass
+
     # Change category
-    driver.find_element_by_id('pstad-lnk-chngeCtgry').click()
     dQuery = parse_qs(ad["caturl"])
     for sPathCat in dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')[0].split('/'):
         log.debug('Category: %s' % (sPathCat,))
         driver.find_element_by_id('cat_' + sPathCat).click()
-        fake_wait()       
+        fake_wait()
     driver.find_element_by_id('postad-step1-sbmt').submit()
     fake_wait(randint(4000, 8000))
 
@@ -301,7 +308,7 @@ def post_ad(driver, ad, fInteractive):
     text_area = driver.find_element_by_id('pstad-descrptn')
     desc = config['glob_ad_prefix'] + ad["desc"] + config['glob_ad_suffix']
     desc_list = [x.strip('\\n') for x in desc.split('\\n')]
-    text_area.clear() 
+    text_area.clear()
     for p in desc_list:
         text_area.send_keys(p)
         text_area.send_keys(Keys.RETURN)
