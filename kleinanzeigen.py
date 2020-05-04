@@ -17,6 +17,8 @@ import signal
 import sys
 import time
 import urlparse
+
+from urlparse import parse_qs
 from random import randint
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -266,23 +268,26 @@ def post_ad(driver, ad, fInteractive):
     if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
         ad["price_type"] = 'NEGOTIABLE'
 
-    # Navigate to page
-    driver.get(ad["caturl"])
-    fake_wait(randint(4000, 8000))
+    driver.get('https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html')
 
-    # Select category
-    try:
-        submit_button = driver.find_element_by_css_selector("#postad-step1-sbmt button")
-        submit_button.click()
-        fake_wait(randint(4000, 8000))
-    except:
-        # In case category page is invalid / outdated
-        pass
+    # Click to post a new ad
+    driver.find_element_by_id('site-mainnav-postad-link').click()
+    fake_wait(randint(4000, 8000))
 
     # Check if posting an ad is allowed / possible
     fRc = post_ad_is_allowed(driver, ad, fInteractive)
     if fRc is False:
         return fRc
+
+    # Change category
+    driver.find_element_by_id('pstad-lnk-chngeCtgry').click()
+    dQuery = parse_qs(ad["caturl"])
+    for sPathCat in dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')[0].split('/'):
+        log.debug('Category: %s' % (sPathCat,))
+        driver.find_element_by_id('cat_' + sPathCat).click()
+        fake_wait()       
+    driver.find_element_by_id('postad-step1-sbmt').submit()
+    fake_wait(randint(4000, 8000))
 
     # Some categories needs this
     post_ad_mandatory_fields_set(driver, ad)
