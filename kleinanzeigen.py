@@ -60,7 +60,21 @@ def profile_write(sProfile, oConfig):
     fhConfig.write(json.dumps(oConfig, sort_keys=True, indent=4))
     fhConfig.close()
 
-def login(driverr, config):
+def login_has_captcha(driver, fInteractive):
+    fRc = False
+    try:
+        e = WebDriverWait(driver, 5).until(
+            expected_conditions.presence_of_element_located((By.ID, "login-recaptcha"))
+            )
+        if e:
+            fRc = True
+    except TimeoutException:
+        pass
+    log.info("Login Captcha: %s" % fRc)
+    return fRc
+
+def login(driver, config, fInteractive):
+    fRc = True
     input_email = config['glob_username']
     input_pw = config['glob_password']
     log.info("Login with account email: " + input_email)
@@ -70,28 +84,42 @@ def login(driverr, config):
 
         log.info('Waitng for login page ...')
 
+        # Accept (click) GDPR banner
+        WebDriverWait(driver, 180).until(
+            expected_conditions.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
+
+        # Send e-mail
         text_area = WebDriverWait(driver, 180).until(
            expected_conditions.presence_of_element_located((By.ID, "login-email"))
-        )
-        text_area.send_keys(input_email)
+        ).send_keys(input_email)
         fake_wait()
 
-        text_area = driver.find_element_by_id('login-password')
-        text_area.send_keys(input_pw)
+        # Send password
+        driver.find_element_by_id('login-password').send_keys(input_pw)
         fake_wait()
 
-        submit_button = driver.find_element_by_id('login-submit')
-        submit_button.click()
+        # Check for captcha
+        fHasCaptcha = login_has_captcha(driver, fInteractive)
+        if fHasCaptcha:
+            if fInteractive:
+                log.info("\t*** Manual login captcha input needed! ***")
+                log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
+                wait_key()
+            else:
+                log.info("\tLogin captcha input needed, but running in non-interactive mode! Skipping ...")
+                fRc = False
+        else:
+            driver.find_element_by_id('login-submit').click()
 
     except TimeoutException as e:
         log.info("Unable to login -- loading site took too long?")
-        return False
+        fRc = False
 
     except NoSuchElementException as e:
-        log.info("Unable to login -- Login form element(s) not found")
-        return False
+        log.info("Unable to login -- login form element(s) not found")
+        fRc = False
 
-    return True
+    return fRc
 
 def fake_wait(msSleep=None):
     if msSleep is None:
@@ -413,7 +441,8 @@ def session_create(config):
 
     log.info("Creating session")
 
-    fUseFirefox = True
+    # For now use the Chrome driver, as Firefox doesn't work (empy page)
+    fUseFirefox = False
 
     if fUseFirefox:
         ff_options = FirefoxOptions()
@@ -426,12 +455,15 @@ def session_create(config):
     else:
         cr_options = ChromeOptions()
         cr_options.add_argument("--no-sandbox")
+        cr_options.add_argument("--disable-blink-features");
+        cr_options.add_argument("--disable-blink-features=AutomationControlled")
         if config.get('headless', False) is True:
             log.info("Headless mode")
             cr_options.add_argument("--headless")
-        cr_options.add_argument("--disable-extensions")
-        cr_options.add_argument("--disable-dev-shm-usage")
-        cr_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.113 Safari/537.36")
+        cr_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36")
+        cr_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        cr_options.add_experimental_option('useAutomationExtension', False)
+
         driver = webdriver.Chrome(chrome_options=cr_options)
 
     log.info("New session is: %s %s" % (driver.session_id, driver.command_executor._url))
@@ -509,21 +541,16 @@ if __name__ == '__main__':
     if config.get('headless') is None:
         config['headless'] = False
 
+    fRc          = True
+    fNeedsLogin  = True
     fForceUpdate = False
-    fDoLogin     = True
-
+ 
     dtNow = datetime.utcnow()
 
     driver = None
 
     if config.get('session_id') is not None:
         driver = session_attach(config)
-
-    if driver is None:
-        driver = session_create(config)
-        profile_write(sProfile, config)
-        login(driver, config)
-        fake_wait(randint(12222, 17777))
 
     for ad in config["ads"]:
 
@@ -564,6 +591,18 @@ if __name__ == '__main__':
 
         if fNeedsUpdate \
         or fForceUpdate:
+
+            if driver is None \
+            and fNeedsLogin:
+                driver = session_create(config)
+                profile_write(sProfile, config)
+                fR = login(driver, config, True)
+                if fRc:
+                    fake_wait(randint(12222, 17777))
+                    fNeedsUpdate = False
+                else:
+                    log.info('Login failed')
+                    break
 
             delete_ad(driver, ad)
             fake_wait(randint(12222, 17777))
