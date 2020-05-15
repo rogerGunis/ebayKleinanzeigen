@@ -221,7 +221,7 @@ def post_ad_is_allowed(driver, ad, fInteractive):
 
     # Try checking for the monthly limit per account first.
     try:
-        icon_insertionfees = driver.driver.find_element_by_class_name('icon-insertionfees')
+        icon_insertionfees = driver.find_element_by_class_name('icon-insertionfees')
         if icon_insertionfees:
             log.info("\t*** Monthly limit of free ads per account reached! Skipping ... ***")
             fRc = False
