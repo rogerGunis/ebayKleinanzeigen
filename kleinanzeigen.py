@@ -302,11 +302,6 @@ def post_ad(driver, ad, fInteractive):
     driver.find_element_by_id('site-mainnav-postad-link').click()
     fake_wait(randint(4000, 8000))
 
-    # Check if posting an ad is allowed / possible
-    fRc = post_ad_is_allowed(driver, ad, fInteractive)
-    if fRc is False:
-        return fRc
-
     # Find out where we are; might be some A/B testing the site does ...
     try:
         e = driver.find_element_by_id('pstad-lnk-chngeCtgry')
@@ -323,6 +318,11 @@ def post_ad(driver, ad, fInteractive):
         fake_wait()
     driver.find_element_by_id('postad-step1-sbmt').submit()
     fake_wait(randint(4000, 8000))
+
+    # Check if posting an ad is allowed / possible
+    fRc = post_ad_is_allowed(driver, ad, fInteractive)
+    if fRc is False:
+        return fRc
 
     # Some categories needs this
     post_ad_mandatory_fields_set(driver, ad)
