@@ -55,6 +55,16 @@ def profile_read(sProfile, oConfig):
         with open(sProfile) as data:
             oConfig.update(json.load(data))
 
+        # Sanitize.
+        if oConfig.get('headless') is None:
+            oConfig['headless'] = False
+
+        if oConfig['glob_phone_number'] is None:
+            oConfig['glob_phone_number'] = ''
+
+        if oConfig['glob_street'] is None:
+            oConfig['glob_street'] = ''
+
 def profile_write(sProfile, oConfig):
     fhConfig = open(sProfile, "w+")
     fhConfig.write(json.dumps(oConfig, sort_keys=True, indent=4))
@@ -75,9 +85,7 @@ def login_has_captcha(driver, fInteractive):
 
 def login(driver, config, fInteractive):
     fRc = True
-    input_email = config['glob_username']
-    input_pw = config['glob_password']
-    log.info("Login with account email: " + input_email)
+    log.info("Logging in ...")
     driver.set_page_load_timeout(90)
     try:
         driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html?targetUrl=/')
@@ -91,11 +99,11 @@ def login(driver, config, fInteractive):
         # Send e-mail
         text_area = WebDriverWait(driver, 180).until(
            expected_conditions.presence_of_element_located((By.ID, "login-email"))
-        ).send_keys(input_email)
+        ).send_keys(config['glob_username'])
         fake_wait()
 
         # Send password
-        driver.find_element_by_id('login-password').send_keys(input_pw)
+        driver.find_element_by_id('login-password').send_keys(config['glob_password'])
         fake_wait()
 
         # Check for captcha
@@ -286,13 +294,27 @@ def post_ad_mandatory_fields_set(driver, ad):
         except:
             pass
 
+def post_field_set_text(driver, ad, field_id, sValue):
+    if sValue:
+        e = driver.find_element_by_id(field_id)
+        e.clear()
+        lstLines = [x.strip('\\n') for x in sValue.split('\\n')]
+        for sLine in lstLines:
+            e.send_keys(sLine)
+            if len(lstLines) > 1:
+                e.send_keys(Keys.RETURN)
+
+        fake_wait()
+
+def post_field_select(driver, ad, field_id, sValue):
+    driver.find_element_by_xpath("//input[@name='%s' and @value='%s']" % (field_id, sValue)).click()
+    fake_wait()
+
 def post_ad(driver, ad, fInteractive):
 
     log.info("\tPublishing ad '...")
 
-    if config['glob_phone_number'] is None:
-        config['glob_phone_number'] = ''
-
+    # Sanitize ad values if not set
     if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
         ad["price_type"] = 'NEGOTIABLE'
 
@@ -328,49 +350,16 @@ def post_ad(driver, ad, fInteractive):
     post_ad_mandatory_fields_set(driver, ad)
 
     # Fill form
-    text_area = driver.find_element_by_id('postad-title')
-    text_area.clear()
-    text_area.send_keys(ad["title"])
-    fake_wait()
+    post_field_set_text(driver, ad, 'postad-title',       ad["title"])
+    post_field_set_text(driver, ad, 'pstad-descrptn',     config['glob_ad_prefix'] + ad["desc"] + config['glob_ad_suffix'])
+    post_field_set_text(driver, ad, 'pstad-price',        ad["price"])
 
-    text_area = driver.find_element_by_id('pstad-descrptn')
-    desc = config['glob_ad_prefix'] + ad["desc"] + config['glob_ad_suffix']
-    desc_list = [x.strip('\\n') for x in desc.split('\\n')]
-    text_area.clear()
-    for p in desc_list:
-        text_area.send_keys(p)
-        text_area.send_keys(Keys.RETURN)
+    post_field_select  (driver, ad, 'priceType',          ad["price_type"]);
 
-    fake_wait()
-
-    text_area = driver.find_element_by_id('pstad-price')
-    text_area.clear()
-    text_area.send_keys(ad["price"])
-    price = driver.find_element_by_xpath("//input[@name='priceType' and @value='%s']" % ad["price_type"])
-    price.click()
-    fake_wait()
-
-    text_area = driver.find_element_by_id('pstad-zip')
-    text_area.clear()
-    text_area.send_keys(config["glob_zip"])
-    fake_wait()
-
-    if config["glob_phone_number"]:
-        text_area = driver.find_element_by_id('postad-phonenumber')
-        text_area.clear()
-        text_area.send_keys(config["glob_phone_number"])
-        fake_wait()
-
-    text_area = driver.find_element_by_id('postad-contactname')
-    text_area.clear()
-    text_area.send_keys(config["glob_contact_name"])
-    fake_wait()
-
-    if config["glob_street"]:
-        text_area = driver.find_element_by_id('pstad-street')
-        text_area.clear()
-        text_area.send_keys(config["glob_street"])
-        fake_wait()
+    post_field_set_text(driver, ad, 'pstad-zip',          config["glob_zip"])
+    post_field_set_text(driver, ad, 'postad-phonenumber', config["glob_phone_number"])
+    post_field_set_text(driver, ad, 'postad-contactname', config["glob_contact_name"])
+    post_field_set_text(driver, ad, 'pstad-street',       config["glob_street"])
 
     # Upload images
     try:
@@ -538,13 +527,10 @@ if __name__ == '__main__':
 
     profile_read(sProfile, config)
 
-    if config.get('headless') is None:
-        config['headless'] = False
-
     fRc          = True
     fNeedsLogin  = True
     fForceUpdate = False
- 
+
     dtNow = datetime.utcnow()
 
     driver = None
