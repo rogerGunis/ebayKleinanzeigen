@@ -176,20 +176,24 @@ def delete_ad(driver, ad):
 
             log.info("\tAd deleted")
 
+            fake_wait(randint(2000, 3000))
+            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+            return True
+
         except NoSuchElementException as e:
             log.info("\tDelete button not found")
     else:
         log.info("\tAd does not exist (anymore)")
 
     ad.pop("id", None)
+    return False
 
 # From: https://stackoverflow.com/questions/983354/how-do-i-make-python-to-wait-for-a-pressed-key
 def wait_key():
     ''' Wait for a key press on the console and return it. '''
     result = None
     if os.name == 'nt':
-        import msvcrt
-        result = msvcrt.getch()
+        result = input("Press Enter to continue ...")
     else:
         import termios
         fd = sys.stdin.fileno()
@@ -310,6 +314,25 @@ def post_field_select(driver, ad, field_id, sValue):
     driver.find_element_by_xpath("//input[@name='%s' and @value='%s']" % (field_id, sValue)).click()
     fake_wait()
 
+def post_upload_image(driver, ad, file_path_abs):
+    try:
+        uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
+        log.debug("\tUploading image: %s" % file_path_abs)
+        fileup.send_keys(os.path.abspath(file_path_abs))
+        total_upload_time = 0
+        while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
+                total_upload_time < 30:
+            fake_wait(500)
+            total_upload_time += 0.5
+
+        if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
+            log.warning("\tCould not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
+        else:
+            log.debug("\tUploaded file in %s seconds" % total_upload_time)
+    except NoSuchElementException:
+        log.warning("Unable to find imagebox for uploading images; skipping")
+        pass
+
 def post_ad(driver, ad, fInteractive):
 
     log.info("\tPublishing ad '...")
@@ -361,26 +384,31 @@ def post_ad(driver, ad, fInteractive):
     post_field_set_text(driver, ad, 'postad-contactname', config["glob_contact_name"])
     post_field_set_text(driver, ad, 'pstad-street',       config["glob_street"])
 
-    # Upload images
-    try:
-        fileup = driver.find_element_by_xpath("//input[@type='file']")
-        for path in ad["photofiles"]:
-            path_abs = config["glob_photo_path"] + path
-            log.debug("\tUploading image: %s" % path_abs)
-            if os.path.exists(path_abs):
-                uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
-                fileup.send_keys(os.path.abspath(path_abs))
-                total_upload_time = 0
-                while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
-                                total_upload_time < 30:
-                    fake_wait()
-                    total_upload_time += 0.5
+    # Upload images from photofiles
+    if "photofiles" in ad:
+        try:
+            fileup = driver.find_element_by_xpath("//input[@type='file']")
+            for path in ad["photofiles"]:
+                post_upload_image(driver, ad, config["glob_photo_path"] + path)
+        except NoSuchElementException:
+            log.warning("Unable to find imagebox for uploading images; skipping")
+            pass
 
-                log.debug("\tUploaded file in %s seconds" % total_upload_time)
-            else:
-                log.debug("\tFile does NOT exist, skipping!")
-    except NoSuchElementException:
-        pass
+    # Upload images from directory
+    if "photo_dir" in ad:
+        try:
+            fileup = driver.find_element_by_xpath("//input[@type='file']")
+            path = ad["photo_dir"]
+            path_abs = config["glob_photo_path"] + path
+            if not path_abs.endswith("/"):
+                path_abs += "/"
+            for filename in os.listdir(path_abs):
+                if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+                    continue
+                post_upload_image(driver, ad, path_abs + filename)
+        except NoSuchElementException:
+            log.warning("Unable to find imagebox for uploading images; skipping")
+            pass
 
     fake_wait()
 
