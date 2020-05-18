@@ -315,6 +315,7 @@ def post_field_select(driver, ad, field_id, sValue):
 
 def post_upload_image(driver, ad, file_path_abs):
     try:
+        fileup = driver.find_element_by_xpath("//input[@type='file']")
         uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
         log.debug("\tUploading image: %s" % file_path_abs)
         fileup.send_keys(os.path.abspath(file_path_abs))
@@ -329,7 +330,7 @@ def post_upload_image(driver, ad, file_path_abs):
         else:
             log.debug("\tUploaded file in %s seconds" % total_upload_time)
     except NoSuchElementException:
-        log.warning("Unable to find imagebox for uploading images; skipping")
+        log.warning("Unable to find elements required for uploading images; skipping")
         pass
 
 def post_ad(driver, ad, fInteractive):
@@ -385,29 +386,19 @@ def post_ad(driver, ad, fInteractive):
 
     # Upload images from photofiles
     if "photofiles" in ad:
-        try:
-            fileup = driver.find_element_by_xpath("//input[@type='file']")
-            for path in ad["photofiles"]:
-                post_upload_image(driver, ad, config["glob_photo_path"] + path)
-        except NoSuchElementException:
-            log.warning("Unable to find imagebox for uploading images; skipping")
-            pass
+        for path in ad["photofiles"]:
+            post_upload_image(driver, ad, config["glob_photo_path"] + path)
 
     # Upload images from directory
     if "photo_dir" in ad:
-        try:
-            fileup = driver.find_element_by_xpath("//input[@type='file']")
-            path = ad["photo_dir"]
-            path_abs = config["glob_photo_path"] + path
-            if not path_abs.endswith("/"):
-                path_abs += "/"
-            for filename in os.listdir(path_abs):
-                if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-                    continue
-                post_upload_image(driver, ad, path_abs + filename)
-        except NoSuchElementException:
-            log.warning("Unable to find imagebox for uploading images; skipping")
-            pass
+        path = ad["photo_dir"]
+        path_abs = config["glob_photo_path"] + path
+        if not path_abs.endswith("/"):
+            path_abs += "/"
+        for filename in os.listdir(path_abs):
+            if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+                continue
+            post_upload_image(driver, ad, path_abs + filename)
 
     fake_wait()
 
