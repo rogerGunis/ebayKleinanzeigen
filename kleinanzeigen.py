@@ -144,19 +144,17 @@ def delete_ad(driver, ad):
     driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
     fake_wait()
 
-    fFound = False
-
     adIdElem = None
 
     if "id" in ad:
-        log.info("\tSearching by ID")
+        log.info("\tSearching by ID (%s)" % (ad["id"],))
         try:
             adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
         except NoSuchElementException as e:
             log.info("\tNot found by ID")
 
-    if not fFound:
-        log.info("\tSearching by title")
+    if adIdElem is None:
+        log.info("\tSearching by title (%s)" % (ad["title"],))
         try:
             adIdElem = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
             adId     = adIdElem.get_attribute("data-adid")
