@@ -333,6 +333,17 @@ def post_upload_image(driver, ad, file_path_abs):
         log.warning("Unable to find elements required for uploading images; skipping")
         pass
 
+def post_upload_path(driver, ad, path_abs):
+    """
+    Uploads all images of a given absolute path.
+    """
+    if not path_abs.endswith("/"):
+        path_abs += "/"
+    for filename in os.listdir(path_abs):
+        if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+            continue
+        post_upload_image(driver, ad, path_abs + filename)
+
 def post_ad(driver, ad, fInteractive):
 
     log.info("\tPublishing ad '...")
@@ -389,16 +400,11 @@ def post_ad(driver, ad, fInteractive):
         for path in ad["photofiles"]:
             post_upload_image(driver, ad, config["glob_photo_path"] + path)
 
-    # Upload images from directory
-    if "photo_dir" in ad:
-        path = ad["photo_dir"]
-        path_abs = config["glob_photo_path"] + path
-        if not path_abs.endswith("/"):
-            path_abs += "/"
-        for filename in os.listdir(path_abs):
-            if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-                continue
-            post_upload_image(driver, ad, path_abs + filename)
+    # Upload images from directories
+    if ("photo_dir") in ad:
+        post_upload_path(driver, ad, config["glob_photo_path"] + ad["photo_dir"])
+    elif ("photodir") in ad:
+        post_upload_path(driver, ad, config["glob_photo_path"] + ad["photodir"])
 
     fake_wait()
 
