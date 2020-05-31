@@ -368,12 +368,25 @@ def post_ad(driver, ad, fInteractive):
 
     # Change category
     dQuery = parse_qs(ad["caturl"])
-    for sPathCat in dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')[0].split('/'):
-        log.debug('Category: %s' % (sPathCat,))
-        driver.find_element_by_id('cat_' + sPathCat).click()
-        fake_wait()
-    driver.find_element_by_id('postad-step1-sbmt').submit()
-    fake_wait(randint(4000, 8000))
+    if dQuery:
+        if ('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path') in dQuery:
+            sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
+        elif if ('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path') in dQuery:
+            sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path')
+
+        if sPathCat:
+            for sCat in sPathCat[0].split('/'):
+                log.debug('Category: %s' % (sCat,))
+                driver.find_element_by_id('cat_' + sCat).click()
+                fake_wait()
+            driver.find_element_by_id('postad-step1-sbmt').submit()
+            fake_wait(randint(1000, 2000))
+        else:
+            log.warning("Invalid category URL specified; skipping")
+            return False    
+    else:
+        log.warning("No category specified; skipping")
+        return False
 
     # Check if posting an ad is allowed / possible
     fRc = post_ad_is_allowed(driver, ad, fInteractive)
