@@ -371,7 +371,7 @@ def post_ad(driver, ad, fInteractive):
     if dQuery:
         if ('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path') in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
-        elif if ('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path') in dQuery:
+        elif ('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path') in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path')
 
         if sPathCat:
