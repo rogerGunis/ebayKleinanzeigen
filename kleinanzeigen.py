@@ -322,8 +322,8 @@ def post_upload_image(driver, ad, file_path_abs):
         total_upload_time = 0
         while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
                 total_upload_time < 30:
-            fake_wait(500)
-            total_upload_time += 0.5
+            fake_wait(1000)
+            total_upload_time += 1
 
         if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
             log.warning("\tCould not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
@@ -383,7 +383,7 @@ def post_ad(driver, ad, fInteractive):
             fake_wait(randint(1000, 2000))
         else:
             log.warning("Invalid category URL specified; skipping")
-            return False    
+            return False
     else:
         log.warning("No category specified; skipping")
         return False
@@ -408,16 +408,24 @@ def post_ad(driver, ad, fInteractive):
     post_field_set_text(driver, ad, 'postad-contactname', config["glob_contact_name"])
     post_field_set_text(driver, ad, 'pstad-street',       config["glob_street"])
 
-    # Upload images from photofiles
-    if "photofiles" in ad:
-        for path in ad["photofiles"]:
-            post_upload_image(driver, ad, config["glob_photo_path"] + path)
+    sPhotoPathRoot = config["glob_photo_path"]
+    if sPhotoPathRoot:
+        # Upload images from photofiles
+        if "photofiles" in ad:
+            for sPath in ad["photofiles"]:
+                post_upload_image(driver, ad, os.path.join(sPhotoPathRoot, sPath))
 
-    # Upload images from directories
-    if ("photo_dir") in ad:
-        post_upload_path(driver, ad, config["glob_photo_path"] + ad["photo_dir"])
-    elif ("photodir") in ad:
-        post_upload_path(driver, ad, config["glob_photo_path"] + ad["photodir"])
+        # Upload images from directories
+        sPhotoPathDir = ''
+        if ("photo_dir") in ad:
+            sPhotoPathDir = ad["photo_dir"]
+        elif ("photodir") in ad:
+            sPhotoPathDir = ad["photodir"]
+
+        if sPhotoPathDir:
+            post_upload_path(driver, ad, os.path.join(sPhotoPathRoot, sPhotoPathDir))
+    else:
+        log.info("No global photo path specified, skipping photo uploads")
 
     fake_wait()
 
