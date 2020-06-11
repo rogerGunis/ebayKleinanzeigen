@@ -475,6 +475,8 @@ def session_create(config):
         if config.get('headless', False) is True:
             log.info("Headless mode")
             ff_options.add_argument("--headless")
+        if config.get('webdriver_enabled', False) is False:
+            ff_options.set_preference("dom.webdriver.enabled", False)
         ff_profile = webdriver.FirefoxProfile()
         ff_profile.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1")
         driver = webdriver.Firefox(firefox_profile=ff_profile, firefox_options=ff_options)
