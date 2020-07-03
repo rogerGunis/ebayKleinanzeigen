@@ -336,10 +336,13 @@ def post_upload_image(driver, ad, file_path_abs):
 def post_upload_path(driver, ad, path_abs):
     """
     Uploads all images of a given absolute path.
+    Note: Oldest images will be uploaded last, so that the oldest image will be the main (gallery) picture.
     """
     if not path_abs.endswith("/"):
         path_abs += "/"
-    for filename in os.listdir(path_abs):
+    files = os.listdir(path_abs)
+    files.sort(reverse=False)
+    for filename in files:
         if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
             continue
         post_upload_image(driver, ad, path_abs + filename)
