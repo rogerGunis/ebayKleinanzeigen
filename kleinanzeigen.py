@@ -150,7 +150,7 @@ def delete_ad(driver, ad):
     if "id" in ad:
         log.info("\tSearching by ID (%s)" % (ad["id"],))
         try:
-            adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
+            adIdElem = driver.find_element_by_xpath('//*[@data-adid="%s"]' % ad["id"])
         except NoSuchElementException as e:
             log.info("\tNot found by ID")
 
