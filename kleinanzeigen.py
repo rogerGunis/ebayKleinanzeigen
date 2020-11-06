@@ -1,7 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# pylint: disable=C0301
+# pylint: disable=C0301,bad-whitespace,invalid-name
 # pylint: disable=C0111
+# pylint: disable=W0141,input-builtin
 
 """
 Created on Tue Oct  6 00:15:14 2015
@@ -9,6 +10,9 @@ Updated and improved by x86dev Dec 2017.
 
 @author: Leo; Eduardo; x86dev
 """
+from __future__ import absolute_import
+from __future__ import division
+
 import json
 import getopt
 import os
@@ -16,9 +20,7 @@ import re
 import signal
 import sys
 import time
-import urlparse
 
-from urlparse import parse_qs
 from random import randint
 import logging
 from datetime import datetime
@@ -53,8 +55,8 @@ log.addHandler(fh)
 
 def profile_read(sProfile, oConfig):
     if os.path.isfile(sProfile):
-        with open(sProfile) as data:
-            oConfig.update(json.load(data))
+        with open(sProfile, encoding="utf-8") as file:
+            oConfig.update(json.load(file))
 
         # Sanitize.
         if oConfig.get('headless') is None:
@@ -67,11 +69,12 @@ def profile_read(sProfile, oConfig):
             oConfig['glob_street'] = ''
 
 def profile_write(sProfile, oConfig):
-    fhConfig = open(sProfile, "w+")
-    fhConfig.write(json.dumps(oConfig, sort_keys=True, indent=4))
-    fhConfig.close()
+    with open(sProfile, "w+", encoding='utf8') as fh_config:
+        text = json.dumps(oConfig, sort_keys=True, indent=4, ensure_ascii=False)
+        fh_config.write(text)
 
 def login_has_captcha(driver, fInteractive):
+    _   = fInteractive
     fRc = False
     try:
         e = WebDriverWait(driver, 5).until(
@@ -81,7 +84,7 @@ def login_has_captcha(driver, fInteractive):
             fRc = True
     except TimeoutException:
         pass
-    log.info("Login Captcha: %s" % fRc)
+    log.info("Login Captcha: %s", fRc)
     return fRc
 
 def login(driver, config, fInteractive):
@@ -98,8 +101,8 @@ def login(driver, config, fInteractive):
             expected_conditions.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
 
         # Send e-mail
-        text_area = WebDriverWait(driver, 180).until(
-           expected_conditions.presence_of_element_located((By.ID, "login-email"))
+        WebDriverWait(driver, 180).until(
+            expected_conditions.presence_of_element_located((By.ID, "login-email"))
         ).send_keys(config['glob_username'])
         fake_wait()
 
@@ -120,11 +123,11 @@ def login(driver, config, fInteractive):
         else:
             driver.find_element_by_id('login-submit').click()
 
-    except TimeoutException as e:
+    except TimeoutException:
         log.info("Unable to login -- loading site took too long?")
         fRc = False
 
-    except NoSuchElementException as e:
+    except NoSuchElementException:
         log.info("Unable to login -- login form element(s) not found")
         fRc = False
 
@@ -135,7 +138,7 @@ def fake_wait(msSleep=None):
         msSleep = randint(777, 3333)
     if msSleep < 100:
         msSleep = 100
-    log.debug("Waiting %d ms ..." % msSleep)
+    log.debug("Waiting %d ms ...",  msSleep)
     time.sleep(msSleep / 1000)
 
 def delete_ad(driver, ad):
@@ -148,19 +151,19 @@ def delete_ad(driver, ad):
     adIdElem = None
 
     if "id" in ad:
-        log.info("\tSearching by ID (%s)" % (ad["id"],))
+        log.info("\tSearching by ID (%s)", ad["id"])
         try:
-            adIdElem = driver.find_element_by_xpath('//*[@data-adid="%s"]' % ad["id"])
-        except NoSuchElementException as e:
+            adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
+        except NoSuchElementException:
             log.info("\tNot found by ID")
 
     if adIdElem is None:
-        log.info("\tSearching by title (%s)" % (ad["title"],))
+        log.info("\tSearching by title (%s)", ad["title"])
         try:
-            adIdElem = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
-            adId     = adIdElem.get_attribute("data-adid")
-            log.info("\tAd ID is %s" % adId)
-        except NoSuchElementException as e:
+            adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
+            adId      = adIdElem.get_attribute("data-adid")
+            log.info("\tAd ID is %s", adId)
+        except NoSuchElementException:
             log.info("\tNot found by title")
 
     if adIdElem is not None:
@@ -179,7 +182,7 @@ def delete_ad(driver, ad):
             webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
             return True
 
-        except NoSuchElementException as e:
+        except NoSuchElementException:
             log.info("\tDelete button not found")
     else:
         log.info("\tAd does not exist (anymore)")
@@ -189,7 +192,7 @@ def delete_ad(driver, ad):
 
 # From: https://stackoverflow.com/questions/983354/how-do-i-make-python-to-wait-for-a-pressed-key
 def wait_key():
-    ''' Wait for a key press on the console and return it. '''
+    """ Wait for a key press on the console and return it. """
     result = None
     if os.name == 'nt':
         result = input("Press Enter to continue ...")
@@ -213,7 +216,8 @@ def wait_key():
 
 def post_ad_has_captcha(driver, ad, fInteractive):
 
-    fRc = False
+    _, _ = ad, fInteractive
+    fRc  = False
 
     try:
         captcha_field = driver.find_element_by_xpath('//*[@id="postAd-recaptcha"]')
@@ -222,13 +226,14 @@ def post_ad_has_captcha(driver, ad, fInteractive):
     except NoSuchElementException:
         pass
 
-    log.info("Captcha: %s" % fRc)
+    log.info("Captcha: %s", fRc)
 
     return fRc
 
 def post_ad_is_allowed(driver, ad, fInteractive):
 
-    fRc = True
+    _, _ = ad, fInteractive
+    fRc  = True
 
     # Try checking for the monthly limit per account first.
     try:
@@ -236,16 +241,17 @@ def post_ad_is_allowed(driver, ad, fInteractive):
         if icon_insertionfees:
             log.info("\t*** Monthly limit of free ads per account reached! Skipping ... ***")
             fRc = False
-    except:
+    except NoSuchElementException:
         pass
 
-    log.info("Ad posting allowed: %s" % fRc)
+    log.info("Ad posting allowed: %s", fRc)
 
     return fRc
 
 def post_ad_mandatory_combobox_select(driver, ad, sName, sValue):
+    _ = ad
     for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
-        log.info("Detected mandatory field: '%s'" % (el.text,))
+        log.info("Detected mandatory field: '%s'", el.text)
         if sName in el.text:
             sForId = el.get_attribute("for")
             Select(driver.find_element_by_id(sForId)).select_by_visible_text(sValue)
@@ -258,7 +264,7 @@ def post_ad_mandatory_fields_set(driver, ad):
         try:
             sForId = el.get_attribute("for")
             if sForId is not None:
-                log.info("Detected mandatory field (Name='%s', ID='%s')" % (el.text, sForId))
+                log.info("Detected mandatory field (Name='%s', ID='%s')", el.text, sForId)
                 reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
                 if reMatch is not None:
                     sForIdRaw = reMatch.group(1)
@@ -266,11 +272,11 @@ def post_ad_mandatory_fields_set(driver, ad):
                     if "field_" + sForIdRaw in ad:
                         try:
                             Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad["field_" + sForIdRaw])
-                        except:
-                            log.info("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)" % (sForIdRaw,))
+                        except NoSuchElementException:
+                            log.info("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
                             fUseDefault = True
                     else:
-                        log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)" % (sForIdRaw,))
+                        log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
                         fUseDefault = True
                     if fUseDefault:
                         s = Select(driver.find_element_by_id(sForId))
@@ -294,7 +300,7 @@ def post_ad_mandatory_fields_set(driver, ad):
                         fake_wait()
                     except:
                         pass
-        except:
+        except NoSuchElementException:
             pass
 
 def post_field_set_text(driver, ad, field_id, sValue):
@@ -372,9 +378,9 @@ def post_ad(driver, ad, fInteractive):
     # Change category
     dQuery = parse_qs(ad["caturl"])
     if dQuery:
-        if ('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path') in dQuery:
+        if 'https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path' in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
-        elif ('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path') in dQuery:
+        elif 'https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path' in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path')
 
         if sPathCat:
@@ -404,7 +410,7 @@ def post_ad(driver, ad, fInteractive):
     post_field_set_text(driver, ad, 'pstad-descrptn',     config['glob_ad_prefix'] + ad["desc"] + config['glob_ad_suffix'])
     post_field_set_text(driver, ad, 'pstad-price',        ad["price"])
 
-    post_field_select  (driver, ad, 'priceType',          ad["price_type"]);
+    post_field_select  (driver, ad, 'priceType',          ad["price_type"])
 
     post_field_set_text(driver, ad, 'pstad-zip',          config["glob_zip"])
     post_field_set_text(driver, ad, 'postad-phonenumber', config["glob_phone_number"])
@@ -420,9 +426,9 @@ def post_ad(driver, ad, fInteractive):
 
         # Upload images from directories
         sPhotoPathDir = ''
-        if ("photo_dir") in ad:
+        if 'photo_dir' in ad:
             sPhotoPathDir = ad["photo_dir"]
-        elif ("photodir") in ad:
+        elif 'photodir' in ad:
             sPhotoPathDir = ad["photodir"]
 
         if sPhotoPathDir:
@@ -457,7 +463,7 @@ def post_ad(driver, ad, fInteractive):
             pass
 
         try:
-            parsed_q = urlparse.parse_qs(urlparse.urlparse(driver.current_url).query)
+            parsed_q = urllib.parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
             addId = parsed_q.get('adId', None)[0]
             log.info("\tPosted as: %s" % driver.current_url)
             if "id" not in ad:
@@ -494,7 +500,7 @@ def session_create(config):
     else:
         cr_options = ChromeOptions()
         cr_options.add_argument("--no-sandbox")
-        cr_options.add_argument("--disable-blink-features");
+        cr_options.add_argument("--disable-blink-features")
         cr_options.add_argument("--disable-blink-features=AutomationControlled")
         if config.get('headless', False) is True:
             log.info("Headless mode")
@@ -554,20 +560,20 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
-        aOpts, aArgs = getopt.gnu_getopt(sys.argv[1:], "ph", ["profile=", "help" ])
-    except getopt.error, msg:
-        print msg
-        print "For help use --help"
+        aOpts, aArgs = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "help" ])
+    except getopt.GetoptError as msg:
+        print(msg)
+        print('For help use --help')
         sys.exit(2)
 
     sProfile = ""
 
     for o, a in aOpts:
-        if o in ("--profile"):
+        if o in '--profile':
             sProfile = a
 
     if not sProfile:
-        print "No profile specified"
+        print('No profile specified')
         sys.exit(2)
 
     log.info('Script started')
