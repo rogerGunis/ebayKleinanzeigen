@@ -102,6 +102,8 @@ def login(driver, config):
         WebDriverWait(driver, 180).until(
             expected_conditions.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
 
+        log.info('Sending login credentials ...')
+
         # Send e-mail
         WebDriverWait(driver, 180).until(
             expected_conditions.presence_of_element_located((By.ID, "login-email"))
@@ -504,8 +506,11 @@ def session_create(config):
         cr_options.add_argument("--disable-blink-features")
         cr_options.add_argument("--disable-blink-features=AutomationControlled")
         if g_fHeadless:
-            log.info("Headless mode")
             cr_options.add_argument("--headless")
+            cr_options.add_argument("--disable-extensions")
+            cr_options.add_argument("--disable-gpu")
+            cr_options.add_argument("--disable-dev-shm-usage")
+            cr_options.add_argument("--window-size=1900,1080")
         cr_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36")
         cr_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         cr_options.add_experimental_option('useAutomationExtension', False)
@@ -584,7 +589,7 @@ if __name__ == '__main__':
     log.info('Script started')
     log.info("Using profile: %s" % sProfile)
 
-    if g_fInteractive:
+    if g_fHeadless:
         log.info("Running in headless mode")
     if not g_fInteractive:
         log.info("Running in non-interactive mode")
