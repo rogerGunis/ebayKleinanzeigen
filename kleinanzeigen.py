@@ -36,6 +36,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 
+# Whether to run in interactive mode or not.
+g_fInteractive = True
+# Whether to run in headless mode or not.
+g_fHeadless    = False
+
 json.JSONEncoder.default = \
     lambda self, obj: \
         (obj.isoformat() if isinstance(obj, datetime) else None)
@@ -59,9 +64,6 @@ def profile_read(sProfile, oConfig):
             oConfig.update(json.load(file))
 
         # Sanitize.
-        if oConfig.get('headless') is None:
-            oConfig['headless'] = False
-
         if oConfig['glob_phone_number'] is None:
             oConfig['glob_phone_number'] = ''
 
@@ -87,7 +89,7 @@ def login_has_captcha(driver, fInteractive):
     log.info("Login Captcha: %s", fRc)
     return fRc
 
-def login(driver, config, fInteractive):
+def login(driver, config):
     fRc = True
     log.info("Logging in ...")
     driver.set_page_load_timeout(90)
@@ -113,7 +115,7 @@ def login(driver, config, fInteractive):
         # Check for captcha
         fHasCaptcha = login_has_captcha(driver, fInteractive)
         if fHasCaptcha:
-            if fInteractive:
+            if g_fInteractive:
                 log.info("\t*** Manual login captcha input needed! ***")
                 log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
                 wait_key()
@@ -353,7 +355,7 @@ def post_upload_path(driver, ad, path_abs):
             continue
         post_upload_image(driver, ad, path_abs + filename)
 
-def post_ad(driver, ad, fInteractive):
+def post_ad(driver, ad):
 
     log.info("\tPublishing ad '...")
 
@@ -446,7 +448,7 @@ def post_ad(driver, ad, fInteractive):
 
     fHasCaptcha = post_ad_has_captcha(driver, ad, fInteractive)
     if fHasCaptcha:
-        if fInteractive:
+        if g_fInteractive:
             log.info("\t*** Manual captcha input needed! ***")
             log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
             wait_key()
@@ -489,8 +491,7 @@ def session_create(config):
 
     if fUseFirefox:
         ff_options = FirefoxOptions()
-        if config.get('headless', False) is True:
-            log.info("Headless mode")
+        if g_fInteractive:
             ff_options.add_argument("--headless")
         if config.get('webdriver_enabled', False) is False:
             ff_options.set_preference("dom.webdriver.enabled", False)
@@ -502,7 +503,7 @@ def session_create(config):
         cr_options.add_argument("--no-sandbox")
         cr_options.add_argument("--disable-blink-features")
         cr_options.add_argument("--disable-blink-features=AutomationControlled")
-        if config.get('headless', False) is True:
+        if g_fHeadless:
             log.info("Headless mode")
             cr_options.add_argument("--headless")
         cr_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36")
@@ -560,7 +561,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
-        aOpts, aArgs = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "help" ])
+        aOpts, aArgs = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "headless", "non-interactive", "help" ])
     except getopt.GetoptError as msg:
         print(msg)
         print('For help use --help')
@@ -571,6 +572,10 @@ if __name__ == '__main__':
     for o, a in aOpts:
         if o in '--profile':
             sProfile = a
+        elif o in '--headless':
+            g_fHeadless = True
+        elif o in '--non-interactive':
+            g_fInteractive = False
 
     if not sProfile:
         print('No profile specified')
@@ -578,6 +583,11 @@ if __name__ == '__main__':
 
     log.info('Script started')
     log.info("Using profile: %s" % sProfile)
+
+    if g_fInteractive:
+        log.info("Running in headless mode")
+    if not g_fInteractive:
+        log.info("Running in non-interactive mode")
 
     config = {}
 
@@ -638,7 +648,7 @@ if __name__ == '__main__':
             and fNeedsLogin:
                 driver = session_create(config)
                 profile_write(sProfile, config)
-                fR = login(driver, config, True)
+                fR = login(driver, config)
                 if fRc:
                     fake_wait(randint(12222, 17777))
                     fNeedsUpdate = False
@@ -649,7 +659,7 @@ if __name__ == '__main__':
             delete_ad(driver, ad)
             fake_wait(randint(12222, 17777))
 
-            fPosted = post_ad(driver, ad, True)
+            fPosted = post_ad(driver, ad)
             if not fPosted:
                 break
 
