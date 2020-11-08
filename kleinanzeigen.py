@@ -79,8 +79,7 @@ def profile_write(sProfile, oConfig):
         text = json.dumps(oConfig, sort_keys=True, indent=4, ensure_ascii=False)
         fh_config.write(text)
 
-def login_has_captcha(driver, fInteractive):
-    _   = fInteractive
+def login_has_captcha(driver):
     fRc = False
     try:
         e = WebDriverWait(driver, 5).until(
@@ -119,7 +118,7 @@ def login(driver, config):
         fake_wait()
 
         # Check for captcha
-        fHasCaptcha = login_has_captcha(driver, fInteractive)
+        fHasCaptcha = login_has_captcha(driver)
         if fHasCaptcha:
             if g_fInteractive:
                 log.info("\t*** Manual login captcha input needed! ***")
@@ -222,9 +221,9 @@ def wait_key():
 
     return result
 
-def post_ad_has_captcha(driver, ad, fInteractive):
+def post_ad_has_captcha(driver, ad):
 
-    _, _ = ad, fInteractive
+    _ = ad
     fRc  = False
 
     try:
@@ -238,9 +237,9 @@ def post_ad_has_captcha(driver, ad, fInteractive):
 
     return fRc
 
-def post_ad_is_allowed(driver, ad, fInteractive):
+def post_ad_is_allowed(driver, ad):
 
-    _, _ = ad, fInteractive
+    _ = ad
     fRc  = True
 
     # Try checking for the monthly limit per account first.
@@ -406,7 +405,7 @@ def post_ad(driver, ad):
         return False
 
     # Check if posting an ad is allowed / possible
-    fRc = post_ad_is_allowed(driver, ad, fInteractive)
+    fRc = post_ad_is_allowed(driver, ad)
     if fRc is False:
         return fRc
 
@@ -452,7 +451,7 @@ def post_ad(driver, ad):
 
     fake_wait()
 
-    fHasCaptcha = post_ad_has_captcha(driver, ad, fInteractive)
+    fHasCaptcha = post_ad_has_captcha(driver, ad)
     if fHasCaptcha:
         if g_fInteractive:
             log.info("\t*** Manual captcha input needed! ***")
