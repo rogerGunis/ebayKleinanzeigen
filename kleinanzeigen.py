@@ -59,16 +59,20 @@ log.addHandler(ch)
 log.addHandler(fh)
 
 def profile_read(sProfile, oConfig):
-    if os.path.isfile(sProfile):
-        with open(sProfile, encoding="utf-8") as file:
-            oConfig.update(json.load(file))
+    if not os.path.isfile(sProfile):
+        return False
 
-        # Sanitize.
-        if oConfig['glob_phone_number'] is None:
-            oConfig['glob_phone_number'] = ''
+    with open(sProfile, encoding="utf-8") as file:
+        oConfig.update(json.load(file))
 
-        if oConfig['glob_street'] is None:
-            oConfig['glob_street'] = ''
+    # Sanitize.
+    if oConfig['glob_phone_number'] is None:
+        oConfig['glob_phone_number'] = ''
+
+    if oConfig['glob_street'] is None:
+        oConfig['glob_street'] = ''
+
+    return True
 
 def profile_write(sProfile, oConfig):
     with open(sProfile, "w+", encoding='utf8') as fh_config:
@@ -596,7 +600,9 @@ if __name__ == '__main__':
 
     config = {}
 
-    profile_read(sProfile, config)
+    if not profile_read(sProfile, config):
+        log.error("Profile file not found / accessible!")
+        sys.exit(1)
 
     fRc          = True
     fNeedsLogin  = True
