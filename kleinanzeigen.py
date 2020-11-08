@@ -509,7 +509,7 @@ def session_create(config):
         cr_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         cr_options.add_experimental_option('useAutomationExtension', False)
 
-        driver = webdriver.Chrome(chrome_options=cr_options)
+        driver = webdriver.Chrome(options=cr_options)
 
     log.info("New session is: %s %s" % (driver.session_id, driver.command_executor._url))
 
