@@ -384,7 +384,7 @@ def post_ad(driver, ad):
         pass
 
     # Change category
-    dQuery = urllib.parse.parse_qs(ad["caturl"])
+    dQuery = parse.parse_qs(ad["caturl"])
     if dQuery:
         if 'https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path' in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
@@ -471,7 +471,7 @@ def post_ad(driver, ad):
             pass
 
         try:
-            parsed_q = urllib.parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
+            parsed_q = parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
             addId = parsed_q.get('adId', None)[0]
             log.info("\tPosted as: %s" % driver.current_url)
             if "id" not in ad:
