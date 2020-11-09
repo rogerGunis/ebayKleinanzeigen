@@ -383,7 +383,7 @@ def post_ad(driver, ad):
         pass
 
     # Change category
-    dQuery = parse_qs(ad["caturl"])
+    dQuery = urllib.parse.parse_qs(ad["caturl"])
     if dQuery:
         if 'https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path' in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
