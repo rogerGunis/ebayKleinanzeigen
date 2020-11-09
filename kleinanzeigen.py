@@ -60,6 +60,9 @@ log.addHandler(ch)
 log.addHandler(fh)
 
 def profile_read(sProfile, oConfig):
+
+    log.info("Loading profile '%s'" % (sProfile,))
+
     if not os.path.isfile(sProfile):
         return False
 
@@ -76,6 +79,9 @@ def profile_read(sProfile, oConfig):
     return True
 
 def profile_write(sProfile, oConfig):
+
+    log.info("Saving profile '%s'" % (sProfile,))
+
     with open(sProfile, "w+", encoding='utf8') as fh_config:
         text = json.dumps(oConfig, sort_keys=True, indent=4, ensure_ascii=False)
         fh_config.write(text)
@@ -682,6 +688,7 @@ if __name__ == '__main__':
             log.info("Waiting for handling next ad ...")
             fake_wait(randint(12222, 17777))
 
-        profile_write(sProfile, config)
+    # Make sure to update the profile's data before terminating.
+    profile_write(sProfile, config)
 
     log.info("Script done")
