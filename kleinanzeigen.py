@@ -25,7 +25,7 @@ from random import randint
 import logging
 from datetime import datetime
 import dateutil.parser
-from urllib import urllib.parse
+from urllib import parse
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
