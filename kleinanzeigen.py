@@ -507,8 +507,11 @@ def session_create(config):
         ff_profile.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1")
         driver = webdriver.Firefox(firefox_profile=ff_profile, firefox_options=ff_options)
     else:
+        # See: https://chromium.googlesource.com/chromium/src/+/master/chrome/common/chrome_switches.cc
+        #      https://chromium.googlesource.com/chromium/src/+/master/chrome/common/pref_names.cc
         cr_options = ChromeOptions()
         cr_options.add_argument("--no-sandbox")
+        cr_options.add_argument("--disable-setuid-sandbox")
         cr_options.add_argument("--disable-blink-features")
         cr_options.add_argument("--disable-blink-features=AutomationControlled")
         if g_fHeadless:
@@ -516,7 +519,7 @@ def session_create(config):
             cr_options.add_argument("--disable-extensions")
             cr_options.add_argument("--disable-gpu")
             cr_options.add_argument("--disable-dev-shm-usage")
-            cr_options.add_argument("--window-size=1900,1080")
+            cr_options.add_argument("--start-maximized")
         cr_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36")
         cr_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         cr_options.add_experimental_option('useAutomationExtension', False)
