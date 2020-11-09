@@ -170,8 +170,10 @@ def delete_ad(driver, ad):
 
             fake_wait()
 
-            btn_confirm_del = driver.find_element_by_id("modal-bulk-delete-ad-sbmt")
-            btn_confirm_del.click()
+            try:
+                driver.find_element_by_id("modal-bulk-delete-ad-sbmt").click()
+            except:
+                driver.find_element_by_id("modal-bulk-mark-ad-sold-sbmt").click()
 
             log.info("\tAd deleted")
 
