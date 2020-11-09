@@ -1,7 +1,8 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# pylint: disable=C0301
+# pylint: disable=C0301,bad-whitespace,invalid-name
 # pylint: disable=C0111
+# pylint: disable=W0141,input-builtin
 
 """
 Created on Tue Oct  6 00:15:14 2015
@@ -9,6 +10,9 @@ Updated and improved by x86dev Dec 2017.
 
 @author: Leo; Eduardo; x86dev
 """
+from __future__ import absolute_import
+from __future__ import division
+
 import json
 import getopt
 import os
@@ -16,13 +20,12 @@ import re
 import signal
 import sys
 import time
-import urlparse
 
-from urlparse import parse_qs
 from random import randint
 import logging
 from datetime import datetime
 import dateutil.parser
+from urllib import parse
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
@@ -33,6 +36,11 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.chrome.options import Options as ChromeOptions
+
+# Whether to run in interactive mode or not.
+g_fInteractive = True
+# Whether to run in headless mode or not.
+g_fHeadless    = False
 
 json.JSONEncoder.default = \
     lambda self, obj: \
@@ -52,26 +60,27 @@ log.addHandler(ch)
 log.addHandler(fh)
 
 def profile_read(sProfile, oConfig):
-    if os.path.isfile(sProfile):
-        with open(sProfile) as data:
-            oConfig.update(json.load(data))
+    if not os.path.isfile(sProfile):
+        return False
 
-        # Sanitize.
-        if oConfig.get('headless') is None:
-            oConfig['headless'] = False
+    with open(sProfile, encoding="utf-8") as file:
+        oConfig.update(json.load(file))
 
-        if oConfig['glob_phone_number'] is None:
-            oConfig['glob_phone_number'] = ''
+    # Sanitize.
+    if oConfig['glob_phone_number'] is None:
+        oConfig['glob_phone_number'] = ''
 
-        if oConfig['glob_street'] is None:
-            oConfig['glob_street'] = ''
+    if oConfig['glob_street'] is None:
+        oConfig['glob_street'] = ''
+
+    return True
 
 def profile_write(sProfile, oConfig):
-    fhConfig = open(sProfile, "w+")
-    fhConfig.write(json.dumps(oConfig, sort_keys=True, indent=4))
-    fhConfig.close()
+    with open(sProfile, "w+", encoding='utf8') as fh_config:
+        text = json.dumps(oConfig, sort_keys=True, indent=4, ensure_ascii=False)
+        fh_config.write(text)
 
-def login_has_captcha(driver, fInteractive):
+def login_has_captcha(driver):
     fRc = False
     try:
         e = WebDriverWait(driver, 5).until(
@@ -81,10 +90,10 @@ def login_has_captcha(driver, fInteractive):
             fRc = True
     except TimeoutException:
         pass
-    log.info("Login Captcha: %s" % fRc)
+    log.info("Login Captcha: %s", fRc)
     return fRc
 
-def login(driver, config, fInteractive):
+def login(driver, config):
     fRc = True
     log.info("Logging in ...")
     driver.set_page_load_timeout(90)
@@ -97,9 +106,11 @@ def login(driver, config, fInteractive):
         WebDriverWait(driver, 180).until(
             expected_conditions.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
 
+        log.info('Sending login credentials ...')
+
         # Send e-mail
-        text_area = WebDriverWait(driver, 180).until(
-           expected_conditions.presence_of_element_located((By.ID, "login-email"))
+        WebDriverWait(driver, 180).until(
+            expected_conditions.presence_of_element_located((By.ID, "login-email"))
         ).send_keys(config['glob_username'])
         fake_wait()
 
@@ -108,9 +119,9 @@ def login(driver, config, fInteractive):
         fake_wait()
 
         # Check for captcha
-        fHasCaptcha = login_has_captcha(driver, fInteractive)
+        fHasCaptcha = login_has_captcha(driver)
         if fHasCaptcha:
-            if fInteractive:
+            if g_fInteractive:
                 log.info("\t*** Manual login captcha input needed! ***")
                 log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
                 wait_key()
@@ -120,11 +131,11 @@ def login(driver, config, fInteractive):
         else:
             driver.find_element_by_id('login-submit').click()
 
-    except TimeoutException as e:
+    except TimeoutException:
         log.info("Unable to login -- loading site took too long?")
         fRc = False
 
-    except NoSuchElementException as e:
+    except NoSuchElementException:
         log.info("Unable to login -- login form element(s) not found")
         fRc = False
 
@@ -135,7 +146,7 @@ def fake_wait(msSleep=None):
         msSleep = randint(777, 3333)
     if msSleep < 100:
         msSleep = 100
-    log.debug("Waiting %d ms ..." % msSleep)
+    log.debug("Waiting %d ms ...",  msSleep)
     time.sleep(msSleep / 1000)
 
 def delete_ad(driver, ad):
@@ -148,19 +159,19 @@ def delete_ad(driver, ad):
     adIdElem = None
 
     if "id" in ad:
-        log.info("\tSearching by ID (%s)" % (ad["id"],))
+        log.info("\tSearching by ID (%s)", ad["id"])
         try:
-            adIdElem = driver.find_element_by_xpath('//*[@data-adid="%s"]' % ad["id"])
-        except NoSuchElementException as e:
+            adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
+        except NoSuchElementException:
             log.info("\tNot found by ID")
 
     if adIdElem is None:
-        log.info("\tSearching by title (%s)" % (ad["title"],))
+        log.info("\tSearching by title (%s)", ad["title"])
         try:
-            adIdElem = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
-            adId     = adIdElem.get_attribute("data-adid")
-            log.info("\tAd ID is %s" % adId)
-        except NoSuchElementException as e:
+            adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
+            adId      = adIdElem.get_attribute("data-adid")
+            log.info("\tAd ID is %s", adId)
+        except NoSuchElementException:
             log.info("\tNot found by title")
 
     if adIdElem is not None:
@@ -181,7 +192,7 @@ def delete_ad(driver, ad):
             webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
             return True
 
-        except NoSuchElementException as e:
+        except NoSuchElementException:
             log.info("\tDelete button not found")
     else:
         log.info("\tAd does not exist (anymore)")
@@ -191,7 +202,7 @@ def delete_ad(driver, ad):
 
 # From: https://stackoverflow.com/questions/983354/how-do-i-make-python-to-wait-for-a-pressed-key
 def wait_key():
-    ''' Wait for a key press on the console and return it. '''
+    """ Wait for a key press on the console and return it. """
     result = None
     if os.name == 'nt':
         result = input("Press Enter to continue ...")
@@ -213,9 +224,10 @@ def wait_key():
 
     return result
 
-def post_ad_has_captcha(driver, ad, fInteractive):
+def post_ad_has_captcha(driver, ad):
 
-    fRc = False
+    _ = ad
+    fRc  = False
 
     try:
         captcha_field = driver.find_element_by_xpath('//*[@id="postAd-recaptcha"]')
@@ -224,13 +236,14 @@ def post_ad_has_captcha(driver, ad, fInteractive):
     except NoSuchElementException:
         pass
 
-    log.info("Captcha: %s" % fRc)
+    log.info("Captcha: %s", fRc)
 
     return fRc
 
-def post_ad_is_allowed(driver, ad, fInteractive):
+def post_ad_is_allowed(driver, ad):
 
-    fRc = True
+    _ = ad
+    fRc  = True
 
     # Try checking for the monthly limit per account first.
     try:
@@ -238,16 +251,17 @@ def post_ad_is_allowed(driver, ad, fInteractive):
         if icon_insertionfees:
             log.info("\t*** Monthly limit of free ads per account reached! Skipping ... ***")
             fRc = False
-    except:
+    except NoSuchElementException:
         pass
 
-    log.info("Ad posting allowed: %s" % fRc)
+    log.info("Ad posting allowed: %s", fRc)
 
     return fRc
 
 def post_ad_mandatory_combobox_select(driver, ad, sName, sValue):
+    _ = ad
     for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
-        log.info("Detected mandatory field: '%s'" % (el.text,))
+        log.info("Detected mandatory field: '%s'", el.text)
         if sName in el.text:
             sForId = el.get_attribute("for")
             Select(driver.find_element_by_id(sForId)).select_by_visible_text(sValue)
@@ -260,7 +274,7 @@ def post_ad_mandatory_fields_set(driver, ad):
         try:
             sForId = el.get_attribute("for")
             if sForId is not None:
-                log.info("Detected mandatory field (Name='%s', ID='%s')" % (el.text, sForId))
+                log.info("Detected mandatory field (Name='%s', ID='%s')", el.text, sForId)
                 reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
                 if reMatch is not None:
                     sForIdRaw = reMatch.group(1)
@@ -268,11 +282,11 @@ def post_ad_mandatory_fields_set(driver, ad):
                     if "field_" + sForIdRaw in ad:
                         try:
                             Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad["field_" + sForIdRaw])
-                        except:
-                            log.info("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)" % (sForIdRaw,))
+                        except NoSuchElementException:
+                            log.info("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
                             fUseDefault = True
                     else:
-                        log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)" % (sForIdRaw,))
+                        log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
                         fUseDefault = True
                     if fUseDefault:
                         s = Select(driver.find_element_by_id(sForId))
@@ -296,7 +310,7 @@ def post_ad_mandatory_fields_set(driver, ad):
                         fake_wait()
                     except:
                         pass
-        except:
+        except NoSuchElementException:
             pass
 
 def post_field_set_text(driver, ad, field_id, sValue):
@@ -349,7 +363,7 @@ def post_upload_path(driver, ad, path_abs):
             continue
         post_upload_image(driver, ad, path_abs + filename)
 
-def post_ad(driver, ad, fInteractive):
+def post_ad(driver, ad):
 
     log.info("\tPublishing ad '...")
 
@@ -372,11 +386,11 @@ def post_ad(driver, ad, fInteractive):
         pass
 
     # Change category
-    dQuery = parse_qs(ad["caturl"])
+    dQuery = parse.parse_qs(ad["caturl"])
     if dQuery:
-        if ('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path') in dQuery:
+        if 'https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path' in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
-        elif ('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path') in dQuery:
+        elif 'https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path' in dQuery:
             sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path')
 
         if sPathCat:
@@ -394,7 +408,7 @@ def post_ad(driver, ad, fInteractive):
         return False
 
     # Check if posting an ad is allowed / possible
-    fRc = post_ad_is_allowed(driver, ad, fInteractive)
+    fRc = post_ad_is_allowed(driver, ad)
     if fRc is False:
         return fRc
 
@@ -406,7 +420,7 @@ def post_ad(driver, ad, fInteractive):
     post_field_set_text(driver, ad, 'pstad-descrptn',     config['glob_ad_prefix'] + ad["desc"] + config['glob_ad_suffix'])
     post_field_set_text(driver, ad, 'pstad-price',        ad["price"])
 
-    post_field_select  (driver, ad, 'priceType',          ad["price_type"]);
+    post_field_select  (driver, ad, 'priceType',          ad["price_type"])
 
     post_field_set_text(driver, ad, 'pstad-zip',          config["glob_zip"])
     post_field_set_text(driver, ad, 'postad-phonenumber', config["glob_phone_number"])
@@ -422,9 +436,9 @@ def post_ad(driver, ad, fInteractive):
 
         # Upload images from directories
         sPhotoPathDir = ''
-        if ("photo_dir") in ad:
+        if 'photo_dir' in ad:
             sPhotoPathDir = ad["photo_dir"]
-        elif ("photodir") in ad:
+        elif 'photodir' in ad:
             sPhotoPathDir = ad["photodir"]
 
         if sPhotoPathDir:
@@ -440,9 +454,9 @@ def post_ad(driver, ad, fInteractive):
 
     fake_wait()
 
-    fHasCaptcha = post_ad_has_captcha(driver, ad, fInteractive)
+    fHasCaptcha = post_ad_has_captcha(driver, ad)
     if fHasCaptcha:
-        if fInteractive:
+        if g_fInteractive:
             log.info("\t*** Manual captcha input needed! ***")
             log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
             wait_key()
@@ -459,7 +473,7 @@ def post_ad(driver, ad, fInteractive):
             pass
 
         try:
-            parsed_q = urlparse.parse_qs(urlparse.urlparse(driver.current_url).query)
+            parsed_q = parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
             addId = parsed_q.get('adId', None)[0]
             log.info("\tPosted as: %s" % driver.current_url)
             if "id" not in ad:
@@ -485,8 +499,7 @@ def session_create(config):
 
     if fUseFirefox:
         ff_options = FirefoxOptions()
-        if config.get('headless', False) is True:
-            log.info("Headless mode")
+        if g_fInteractive:
             ff_options.add_argument("--headless")
         if config.get('webdriver_enabled', False) is False:
             ff_options.set_preference("dom.webdriver.enabled", False)
@@ -496,16 +509,19 @@ def session_create(config):
     else:
         cr_options = ChromeOptions()
         cr_options.add_argument("--no-sandbox")
-        cr_options.add_argument("--disable-blink-features");
+        cr_options.add_argument("--disable-blink-features")
         cr_options.add_argument("--disable-blink-features=AutomationControlled")
-        if config.get('headless', False) is True:
-            log.info("Headless mode")
+        if g_fHeadless:
             cr_options.add_argument("--headless")
+            cr_options.add_argument("--disable-extensions")
+            cr_options.add_argument("--disable-gpu")
+            cr_options.add_argument("--disable-dev-shm-usage")
+            cr_options.add_argument("--window-size=1900,1080")
         cr_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36")
         cr_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         cr_options.add_experimental_option('useAutomationExtension', False)
 
-        driver = webdriver.Chrome(chrome_options=cr_options)
+        driver = webdriver.Chrome(options=cr_options)
 
     log.info("New session is: %s %s" % (driver.session_id, driver.command_executor._url))
 
@@ -556,28 +572,39 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal_handler)
 
     try:
-        aOpts, aArgs = getopt.gnu_getopt(sys.argv[1:], "ph", ["profile=", "help" ])
-    except getopt.error, msg:
-        print msg
-        print "For help use --help"
+        aOpts, aArgs = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "headless", "non-interactive", "help" ])
+    except getopt.GetoptError as msg:
+        print(msg)
+        print('For help use --help')
         sys.exit(2)
 
     sProfile = ""
 
     for o, a in aOpts:
-        if o in ("--profile"):
+        if o in '--profile':
             sProfile = a
+        elif o in '--headless':
+            g_fHeadless = True
+        elif o in '--non-interactive':
+            g_fInteractive = False
 
     if not sProfile:
-        print "No profile specified"
+        print('No profile specified')
         sys.exit(2)
 
     log.info('Script started')
     log.info("Using profile: %s" % sProfile)
 
+    if g_fHeadless:
+        log.info("Running in headless mode")
+    if not g_fInteractive:
+        log.info("Running in non-interactive mode")
+
     config = {}
 
-    profile_read(sProfile, config)
+    if not profile_read(sProfile, config):
+        log.error("Profile file not found / accessible!")
+        sys.exit(1)
 
     fRc          = True
     fNeedsLogin  = True
@@ -634,7 +661,7 @@ if __name__ == '__main__':
             and fNeedsLogin:
                 driver = session_create(config)
                 profile_write(sProfile, config)
-                fR = login(driver, config, True)
+                fR = login(driver, config)
                 if fRc:
                     fake_wait(randint(12222, 17777))
                     fNeedsUpdate = False
@@ -645,7 +672,7 @@ if __name__ == '__main__':
             delete_ad(driver, ad)
             fake_wait(randint(12222, 17777))
 
-            fPosted = post_ad(driver, ad, True)
+            fPosted = post_ad(driver, ad)
             if not fPosted:
                 break
 
