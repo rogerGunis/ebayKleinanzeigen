@@ -160,54 +160,64 @@ def fake_wait(msSleep=None):
 
 def delete_ad(driver, ad):
 
-    log.info("Deleting ad ...")
+    log.info("Deleting ad '%s' ..." % (ad["title"],))
 
-    driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
-    fake_wait()
+    fRc = True
 
-    adIdElem = None
+    while fRc:
 
-    if "id" in ad:
-        log.info("Searching by ID (%s)", ad["id"])
-        try:
-            adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
-        except NoSuchElementException:
-            log.info("Not found by ID")
+        driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
+        fake_wait()
 
-    if adIdElem is None:
-        log.info("Searching by title (%s)", ad["title"])
-        try:
-            adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
-            adId      = adIdElem.get_attribute("data-adid")
-            log.info("Ad ID is %s", adId)
-        except NoSuchElementException:
-            log.info("Not found by title")
+        adIdElem = None
 
-    if adIdElem is not None:
-        try:
-            btn_del = adIdElem.find_element_by_class_name("managead-listitem-action-delete")
-            btn_del.click()
-
-            fake_wait()
-
+        if "id" in ad:
+            log.info("Searching by ID (%s)", ad["id"])
             try:
-                driver.find_element_by_id("modal-bulk-delete-ad-sbmt").click()
-            except:
-                driver.find_element_by_id("modal-bulk-mark-ad-sold-sbmt").click()
+                adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
+            except NoSuchElementException:
+                log.warning("Not found by ID")
 
-            log.info("Ad deleted")
+        if adIdElem is None:
+            log.info("Searching by title (%s)", ad["title"])
+            try:
+                adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
+                adId      = adIdElem.get_attribute("data-adid")
+                log.info("Ad ID is %s", adId)
+            except NoSuchElementException:
+                log.warning("Not found by title")
 
-            fake_wait(randint(2000, 3000))
-            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
-            return True
+        if adIdElem is not None:
+            try:
+                btn_del = adIdElem.find_element_by_class_name("managead-listitem-action-delete")
+                btn_del.click()
 
-        except NoSuchElementException:
-            log.info("Delete button not found")
-    else:
-        log.info("Ad does not exist (anymore)")
+                fake_wait()
+
+                try:
+                    driver.find_element_by_id("modal-bulk-delete-ad-sbmt").click()
+                except:
+                    driver.find_element_by_id("modal-bulk-mark-ad-sold-sbmt").click()
+
+                log.info("Ad deleted")
+
+                fake_wait(randint(2000, 3000))
+                webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+            except NoSuchElementException:
+                log.error("Delete button not found")
+                fRc = False
+                break
+        else:
+            log.info("Ad does not exist (anymore)")
+            break
+
+    if not fRc:
+        log.error("Deleting ad failed")
 
     ad.pop("id", None)
-    return False
+
+    return fRc
 
 # From: https://stackoverflow.com/questions/983354/how-do-i-make-python-to-wait-for-a-pressed-key
 def wait_key():
