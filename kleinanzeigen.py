@@ -402,10 +402,18 @@ def post_ad(driver, ad):
         if sPathCat:
             for sCat in sPathCat[0].split('/'):
                 log.debug('Category: %s' % (sCat,))
-                driver.find_element_by_id('cat_' + sCat).click()
-                fake_wait()
-            driver.find_element_by_id('postad-step1-sbmt').submit()
-            fake_wait(randint(1000, 2000))
+                try:
+                    driver.find_element_by_id('cat_' + sCat).click()
+                    fake_wait()
+                except:
+                    log.warning("Category not existing (anymore); skipping")
+                    return False
+            try:
+                driver.find_element_by_id('postad-step1-sbmt').submit()
+                fake_wait(randint(1000, 2000))
+            except:
+                log.error("Category submit button not found, skipping")
+                return False
         else:
             log.warning("Invalid category URL specified; skipping")
             return False
