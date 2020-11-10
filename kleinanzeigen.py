@@ -47,17 +47,20 @@ json.JSONEncoder.default = \
         (obj.isoformat() if isinstance(obj, datetime) else None)
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-fh = logging.FileHandler('kleinanzeigen.log')
-fh.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-formatter = logging.Formatter('%(asctime)s %(message)s')
+log_fh = logging.FileHandler('kleinanzeigen.log')
+log_fh.setLevel(logging.INFO)
+log_fh.setFormatter(log_formatter)
 
-log.addHandler(ch)
-log.addHandler(fh)
+log_stream = logging.StreamHandler()
+log_stream.setLevel(logging.INFO)
+log_stream.setFormatter(log_formatter)
+
+log.addHandler(log_stream)
+log.addHandler(log_fh)
 
 def profile_read(sProfile, oConfig):
 
@@ -128,11 +131,11 @@ def login(driver, config):
         fHasCaptcha = login_has_captcha(driver)
         if fHasCaptcha:
             if g_fInteractive:
-                log.info("\t*** Manual login captcha input needed! ***")
-                log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
+                log.info("*** Manual login captcha input needed! ***")
+                log.info("Fill out captcha and submit, after that press Enter here to continue ...")
                 wait_key()
             else:
-                log.info("\tLogin captcha input needed, but running in non-interactive mode! Skipping ...")
+                log.info("Login captcha input needed, but running in non-interactive mode! Skipping ...")
                 fRc = False
         else:
             driver.find_element_by_id('login-submit').click()
@@ -157,54 +160,64 @@ def fake_wait(msSleep=None):
 
 def delete_ad(driver, ad):
 
-    log.info("\tDeleting ad ...")
+    log.info("Deleting ad '%s' ..." % (ad["title"],))
 
-    driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
-    fake_wait()
+    fRc = True
 
-    adIdElem = None
+    while fRc:
 
-    if "id" in ad:
-        log.info("\tSearching by ID (%s)", ad["id"])
-        try:
-            adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
-        except NoSuchElementException:
-            log.info("\tNot found by ID")
+        driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
+        fake_wait()
 
-    if adIdElem is None:
-        log.info("\tSearching by title (%s)", ad["title"])
-        try:
-            adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
-            adId      = adIdElem.get_attribute("data-adid")
-            log.info("\tAd ID is %s", adId)
-        except NoSuchElementException:
-            log.info("\tNot found by title")
+        adIdElem = None
 
-    if adIdElem is not None:
-        try:
-            btn_del = adIdElem.find_element_by_class_name("managead-listitem-action-delete")
-            btn_del.click()
-
-            fake_wait()
-
+        if "id" in ad:
+            log.info("Searching by ID (%s)", ad["id"])
             try:
-                driver.find_element_by_id("modal-bulk-delete-ad-sbmt").click()
-            except:
-                driver.find_element_by_id("modal-bulk-mark-ad-sold-sbmt").click()
+                adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
+            except NoSuchElementException:
+                log.warning("Not found by ID")
 
-            log.info("\tAd deleted")
+        if adIdElem is None:
+            log.info("Searching by title (%s)", ad["title"])
+            try:
+                adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
+                adId      = adIdElem.get_attribute("data-adid")
+                log.info("Ad ID is %s", adId)
+            except NoSuchElementException:
+                log.warning("Not found by title")
 
-            fake_wait(randint(2000, 3000))
-            webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
-            return True
+        if adIdElem is not None:
+            try:
+                btn_del = adIdElem.find_element_by_class_name("managead-listitem-action-delete")
+                btn_del.click()
 
-        except NoSuchElementException:
-            log.info("\tDelete button not found")
-    else:
-        log.info("\tAd does not exist (anymore)")
+                fake_wait()
+
+                try:
+                    driver.find_element_by_id("modal-bulk-delete-ad-sbmt").click()
+                except:
+                    driver.find_element_by_id("modal-bulk-mark-ad-sold-sbmt").click()
+
+                log.info("Ad deleted")
+
+                fake_wait(randint(2000, 3000))
+                webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+
+            except NoSuchElementException:
+                log.error("Delete button not found")
+                fRc = False
+                break
+        else:
+            log.info("Ad does not exist (anymore)")
+            break
+
+    if not fRc:
+        log.error("Deleting ad failed")
 
     ad.pop("id", None)
-    return False
+
+    return fRc
 
 # From: https://stackoverflow.com/questions/983354/how-do-i-make-python-to-wait-for-a-pressed-key
 def wait_key():
@@ -255,7 +268,7 @@ def post_ad_is_allowed(driver, ad):
     try:
         icon_insertionfees = driver.find_element_by_class_name('icon-insertionfees')
         if icon_insertionfees:
-            log.info("\t*** Monthly limit of free ads per account reached! Skipping ... ***")
+            log.info("*** Monthly limit of free ads per account reached! Skipping ... ***")
             fRc = False
     except NoSuchElementException:
         pass
@@ -267,7 +280,7 @@ def post_ad_is_allowed(driver, ad):
 def post_ad_mandatory_combobox_select(driver, ad, sName, sValue):
     _ = ad
     for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
-        log.info("Detected mandatory field: '%s'", el.text)
+        log.debug("Detected mandatory field: '%s'", el.text)
         if sName in el.text:
             sForId = el.get_attribute("for")
             Select(driver.find_element_by_id(sForId)).select_by_visible_text(sValue)
@@ -280,7 +293,7 @@ def post_ad_mandatory_fields_set(driver, ad):
         try:
             sForId = el.get_attribute("for")
             if sForId is not None:
-                log.info("Detected mandatory field (Name='%s', ID='%s')", el.text, sForId)
+                log.debug("Detected mandatory field (Name='%s', ID='%s')", el.text, sForId)
                 reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
                 if reMatch is not None:
                     sForIdRaw = reMatch.group(1)
@@ -289,10 +302,10 @@ def post_ad_mandatory_fields_set(driver, ad):
                         try:
                             Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad["field_" + sForIdRaw])
                         except NoSuchElementException:
-                            log.info("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
+                            log.warning("Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
                             fUseDefault = True
                     else:
-                        log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
+                        log.warning("No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
                         fUseDefault = True
                     if fUseDefault:
                         s = Select(driver.find_element_by_id(sForId))
@@ -309,7 +322,7 @@ def post_ad_mandatory_fields_set(driver, ad):
                     if "field_" + sForIdRaw in ad:
                         sValue = ad["field_" + sForIdRaw]
                     else:
-                        log.info("*** Warning: No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
+                        log.warning("No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
                         sValue = 'Nicht angegeben'
                     try:
                         driver.find_element_by_id(sForId).send_keys(sValue)
@@ -339,7 +352,7 @@ def post_upload_image(driver, ad, file_path_abs):
     try:
         fileup = driver.find_element_by_xpath("//input[@type='file']")
         uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
-        log.debug("\tUploading image: %s" % file_path_abs)
+        log.debug("Uploading image: %s" % file_path_abs)
         fileup.send_keys(os.path.abspath(file_path_abs))
         total_upload_time = 0
         while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
@@ -348,9 +361,9 @@ def post_upload_image(driver, ad, file_path_abs):
             total_upload_time += 1
 
         if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
-            log.warning("\tCould not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
+            log.warning("Could not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
         else:
-            log.debug("\tUploaded file in %s seconds" % total_upload_time)
+            log.debug("Uploaded file in %s seconds" % total_upload_time)
     except NoSuchElementException:
         log.warning("Unable to find elements required for uploading images; skipping")
         pass
@@ -371,7 +384,7 @@ def post_upload_path(driver, ad, path_abs):
 
 def post_ad(driver, ad):
 
-    log.info("\tPublishing ad '...")
+    log.info("Publishing ad '%s' ..." % (ad["title"],))
 
     # Sanitize ad values if not set
     if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
@@ -462,45 +475,52 @@ def post_ad(driver, ad):
 
     fake_wait()
 
-    submit_button = driver.find_element_by_id('pstad-frmprview')
-    if submit_button:
-        submit_button.click()
+    try:
+        log.info("Submitting ad ...")
+        driver.find_element_by_id('pstad-frmprview').click()
+    except:
+        log.error("Submit button not found!")
+        fRc = False
 
     fake_wait()
 
-    fHasCaptcha = post_ad_has_captcha(driver, ad)
-    if fHasCaptcha:
-        if g_fInteractive:
-            log.info("\t*** Manual captcha input needed! ***")
-            log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
-            wait_key()
-        else:
-            log.info("\tCaptcha input needed, but running in non-interactive mode! Skipping ...")
-            fRc = False
+    if fRc:
+        fHasCaptcha = post_ad_has_captcha(driver, ad)
+        if fHasCaptcha:
+            if g_fInteractive:
+                log.info("*** Manual captcha input needed! ***")
+                log.info("Fill out captcha and submit, after that press Enter here to continue ...")
+                wait_key()
+            else:
+                log.info("Captcha input needed, but running in non-interactive mode! Skipping ...")
+                fRc = False
 
     if fRc:
         try:
-            submit_button = driver.find_element_by_id('prview-btn-post')
-            if submit_button:
-                submit_button.click()
+            submit_button = driver.find_element_by_id('prview-btn-post').click()
         except NoSuchElementException:
+            log.info("Preview button not found, skipping")
             pass
 
         try:
             parsed_q = parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
             addId = parsed_q.get('adId', None)[0]
-            log.info("\tPosted as: %s" % driver.current_url)
+            log.info("Posted as: %s" % driver.current_url)
             if "id" not in ad:
-                log.info("\tNew ad ID: %s" % addId)
+                log.info("New ad ID: %s" % addId)
                 ad["date_published"] = datetime.utcnow()
 
             ad["id"]           = addId
-            ad["date_updated"] = datetime.utcnow()
         except:
-            pass
+            log.error("Unable to parse posted ad ID")
+            fRc = False
+
+        # Make sure to update the updated timestamp, even if we weren't able
+        # to find the (new) ad ID.
+        ad["date_updated"] = datetime.utcnow()
 
     if fRc is False:
-        log.info("\tError publishing ad")
+        log.error("Error publishing ad '%s'" % (ad["title"],))
 
     return fRc
 
@@ -604,6 +624,10 @@ if __name__ == '__main__':
             g_fHeadless = True
         elif o in '--non-interactive':
             g_fInteractive = False
+        elif o in '--debug':
+            log_stream.setLevel(logging.DEBUG)
+            log_fh.setLevel(logging.DEBUG)
+            log.setLevel(logging.DEBUG)
 
     if not sProfile:
         print('No profile specified')
@@ -649,10 +673,10 @@ if __name__ == '__main__':
         if  "enabled" in ad \
         and ad["enabled"] == "1":
             if "date_published" in ad:
-                log.info("\tAlready published (%d days ago)" % dtDiff.days)
+                log.info("Already published (%d days ago)" % dtDiff.days)
                 glob_update_after_days = int(config.get('glob_update_after_days'))
                 if dtDiff.days > glob_update_after_days:
-                    log.info("\tCustom global update interval (%d days) set and needs to be updated" % \
+                    log.info("Custom global update interval (%d days) set and needs to be updated" % \
                              glob_update_after_days)
                     fNeedsUpdate = True
 
@@ -662,14 +686,14 @@ if __name__ == '__main__':
 
                 if  ad_update_after_days != 0 \
                 and dtDiff.days > ad_update_after_days:
-                    log.info("\tAd has a specific update interval (%d days) and needs to be updated" % \
+                    log.info("Ad has a specific update interval (%d days) and needs to be updated" % \
                              ad_update_after_days)
                     fNeedsUpdate = True
             else:
-                log.info("\tNot published yet")
+                log.info("Not published yet")
                 fNeedsUpdate = True
         else:
-            log.info("\tDisabled, skipping")
+            log.info("Disabled, skipping")
 
         if fNeedsUpdate \
         or fForceUpdate:
