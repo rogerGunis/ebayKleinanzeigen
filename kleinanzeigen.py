@@ -47,7 +47,7 @@ json.JSONEncoder.default = \
         (obj.isoformat() if isinstance(obj, datetime) else None)
 
 log = logging.getLogger(__name__)
-log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
 log_fh = logging.FileHandler('kleinanzeigen.log')
 log_fh.setLevel(logging.DEBUG)
