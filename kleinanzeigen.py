@@ -47,14 +47,16 @@ json.JSONEncoder.default = \
         (obj.isoformat() if isinstance(obj, datetime) else None)
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
 log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
 log_fh = logging.FileHandler('kleinanzeigen.log')
-log_fh.setLevel(logging.DEBUG)
+log_fh.setLevel(logging.INFO)
 log_fh.setFormatter(log_formatter)
 
 log_stream = logging.StreamHandler()
-log_stream.setLevel(logging.DEBUG)
+log_stream.setLevel(logging.INFO)
 log_stream.setFormatter(log_formatter)
 
 log.addHandler(log_stream)
@@ -604,6 +606,10 @@ if __name__ == '__main__':
             g_fHeadless = True
         elif o in '--non-interactive':
             g_fInteractive = False
+        elif o in '--debug':
+            log_stream.setLevel(logging.DEBUG)
+            log_fh.setLevel(logging.DEBUG)
+            log.setLevel(logging.DEBUG)
 
     if not sProfile:
         print('No profile specified')
