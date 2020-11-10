@@ -47,17 +47,18 @@ json.JSONEncoder.default = \
         (obj.isoformat() if isinstance(obj, datetime) else None)
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-fh = logging.FileHandler('kleinanzeigen.log')
-fh.setLevel(logging.DEBUG)
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+log_fh = logging.FileHandler('kleinanzeigen.log')
+log_fh.setLevel(logging.DEBUG)
+log_fh.setFormatter(log_formatter)
 
-formatter = logging.Formatter('%(asctime)s %(message)s')
+log_stream = logging.StreamHandler()
+log_stream.setLevel(logging.DEBUG)
+log_stream.setFormatter(log_formatter)
 
-log.addHandler(ch)
-log.addHandler(fh)
+log.addHandler(log_stream)
+log.addHandler(log_fh)
 
 def profile_read(sProfile, oConfig):
 
@@ -289,10 +290,10 @@ def post_ad_mandatory_fields_set(driver, ad):
                         try:
                             Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad["field_" + sForIdRaw])
                         except NoSuchElementException:
-                            log.info("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
+                            log.debug("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
                             fUseDefault = True
                     else:
-                        log.info("*** Warning: No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
+                        log.debug("*** Warning: No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
                         fUseDefault = True
                     if fUseDefault:
                         s = Select(driver.find_element_by_id(sForId))
@@ -309,7 +310,7 @@ def post_ad_mandatory_fields_set(driver, ad):
                     if "field_" + sForIdRaw in ad:
                         sValue = ad["field_" + sForIdRaw]
                     else:
-                        log.info("*** Warning: No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
+                        log.debug("*** Warning: No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
                         sValue = 'Nicht angegeben'
                     try:
                         driver.find_element_by_id(sForId).send_keys(sValue)
@@ -371,7 +372,7 @@ def post_upload_path(driver, ad, path_abs):
 
 def post_ad(driver, ad):
 
-    log.info("\tPublishing ad '...")
+    log.info("\tPublishing ad '%s' ..." % (ad["title"],))
 
     # Sanitize ad values if not set
     if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
@@ -454,28 +455,31 @@ def post_ad(driver, ad):
 
     fake_wait()
 
-    submit_button = driver.find_element_by_id('pstad-frmprview')
-    if submit_button:
-        submit_button.click()
+    try:
+        log.info("Submitting ad ...")
+        driver.find_element_by_id('pstad-frmprview').click()
+    except:
+        log.error("Submit button not found!")
+        fRc = False
 
     fake_wait()
 
-    fHasCaptcha = post_ad_has_captcha(driver, ad)
-    if fHasCaptcha:
-        if g_fInteractive:
-            log.info("\t*** Manual captcha input needed! ***")
-            log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
-            wait_key()
-        else:
-            log.info("\tCaptcha input needed, but running in non-interactive mode! Skipping ...")
-            fRc = False
+    if fRc:
+        fHasCaptcha = post_ad_has_captcha(driver, ad)
+        if fHasCaptcha:
+            if g_fInteractive:
+                log.info("\t*** Manual captcha input needed! ***")
+                log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
+                wait_key()
+            else:
+                log.info("\tCaptcha input needed, but running in non-interactive mode! Skipping ...")
+                fRc = False
 
     if fRc:
         try:
-            submit_button = driver.find_element_by_id('prview-btn-post')
-            if submit_button:
-                submit_button.click()
+            submit_button = driver.find_element_by_id('prview-btn-post').click()
         except NoSuchElementException:
+            log.info("\tPreview button not found, skipping")
             pass
 
         try:
@@ -487,12 +491,16 @@ def post_ad(driver, ad):
                 ad["date_published"] = datetime.utcnow()
 
             ad["id"]           = addId
-            ad["date_updated"] = datetime.utcnow()
         except:
-            pass
+            log.error("\tUnable to parse posted ad ID")
+            fRc = False
+
+        # Make sure to update the updated timestamp, even if we weren't able
+        # to find the (new) ad ID.
+        ad["date_updated"] = datetime.utcnow()
 
     if fRc is False:
-        log.info("\tError publishing ad")
+        log.error("\tError publishing ad '%s'" % (ad["title"],))
 
     return fRc
 
