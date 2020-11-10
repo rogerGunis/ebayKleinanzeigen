@@ -131,11 +131,11 @@ def login(driver, config):
         fHasCaptcha = login_has_captcha(driver)
         if fHasCaptcha:
             if g_fInteractive:
-                log.info("\t*** Manual login captcha input needed! ***")
-                log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
+                log.info("*** Manual login captcha input needed! ***")
+                log.info("Fill out captcha and submit, after that press Enter here to continue ...")
                 wait_key()
             else:
-                log.info("\tLogin captcha input needed, but running in non-interactive mode! Skipping ...")
+                log.info("Login captcha input needed, but running in non-interactive mode! Skipping ...")
                 fRc = False
         else:
             driver.find_element_by_id('login-submit').click()
@@ -160,7 +160,7 @@ def fake_wait(msSleep=None):
 
 def delete_ad(driver, ad):
 
-    log.info("\tDeleting ad ...")
+    log.info("Deleting ad ...")
 
     driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
     fake_wait()
@@ -168,20 +168,20 @@ def delete_ad(driver, ad):
     adIdElem = None
 
     if "id" in ad:
-        log.info("\tSearching by ID (%s)", ad["id"])
+        log.info("Searching by ID (%s)", ad["id"])
         try:
             adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
         except NoSuchElementException:
-            log.info("\tNot found by ID")
+            log.info("Not found by ID")
 
     if adIdElem is None:
-        log.info("\tSearching by title (%s)", ad["title"])
+        log.info("Searching by title (%s)", ad["title"])
         try:
             adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
             adId      = adIdElem.get_attribute("data-adid")
-            log.info("\tAd ID is %s", adId)
+            log.info("Ad ID is %s", adId)
         except NoSuchElementException:
-            log.info("\tNot found by title")
+            log.info("Not found by title")
 
     if adIdElem is not None:
         try:
@@ -195,16 +195,16 @@ def delete_ad(driver, ad):
             except:
                 driver.find_element_by_id("modal-bulk-mark-ad-sold-sbmt").click()
 
-            log.info("\tAd deleted")
+            log.info("Ad deleted")
 
             fake_wait(randint(2000, 3000))
             webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
             return True
 
         except NoSuchElementException:
-            log.info("\tDelete button not found")
+            log.info("Delete button not found")
     else:
-        log.info("\tAd does not exist (anymore)")
+        log.info("Ad does not exist (anymore)")
 
     ad.pop("id", None)
     return False
@@ -258,7 +258,7 @@ def post_ad_is_allowed(driver, ad):
     try:
         icon_insertionfees = driver.find_element_by_class_name('icon-insertionfees')
         if icon_insertionfees:
-            log.info("\t*** Monthly limit of free ads per account reached! Skipping ... ***")
+            log.info("*** Monthly limit of free ads per account reached! Skipping ... ***")
             fRc = False
     except NoSuchElementException:
         pass
@@ -270,7 +270,7 @@ def post_ad_is_allowed(driver, ad):
 def post_ad_mandatory_combobox_select(driver, ad, sName, sValue):
     _ = ad
     for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
-        log.info("Detected mandatory field: '%s'", el.text)
+        log.debug("Detected mandatory field: '%s'", el.text)
         if sName in el.text:
             sForId = el.get_attribute("for")
             Select(driver.find_element_by_id(sForId)).select_by_visible_text(sValue)
@@ -283,7 +283,7 @@ def post_ad_mandatory_fields_set(driver, ad):
         try:
             sForId = el.get_attribute("for")
             if sForId is not None:
-                log.info("Detected mandatory field (Name='%s', ID='%s')", el.text, sForId)
+                log.debug("Detected mandatory field (Name='%s', ID='%s')", el.text, sForId)
                 reMatch = re.search('.*\.(.*)_s.*', sForId, re.IGNORECASE)
                 if reMatch is not None:
                     sForIdRaw = reMatch.group(1)
@@ -292,10 +292,10 @@ def post_ad_mandatory_fields_set(driver, ad):
                         try:
                             Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad["field_" + sForIdRaw])
                         except NoSuchElementException:
-                            log.debug("*** Warning: Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
+                            log.warning("Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
                             fUseDefault = True
                     else:
-                        log.debug("*** Warning: No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
+                        log.warning("No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
                         fUseDefault = True
                     if fUseDefault:
                         s = Select(driver.find_element_by_id(sForId))
@@ -312,7 +312,7 @@ def post_ad_mandatory_fields_set(driver, ad):
                     if "field_" + sForIdRaw in ad:
                         sValue = ad["field_" + sForIdRaw]
                     else:
-                        log.debug("*** Warning: No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
+                        log.warning("No value for text field '%s' defined, setting to empty value" % (sForIdRaw,))
                         sValue = 'Nicht angegeben'
                     try:
                         driver.find_element_by_id(sForId).send_keys(sValue)
@@ -342,7 +342,7 @@ def post_upload_image(driver, ad, file_path_abs):
     try:
         fileup = driver.find_element_by_xpath("//input[@type='file']")
         uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
-        log.debug("\tUploading image: %s" % file_path_abs)
+        log.debug("Uploading image: %s" % file_path_abs)
         fileup.send_keys(os.path.abspath(file_path_abs))
         total_upload_time = 0
         while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
@@ -351,9 +351,9 @@ def post_upload_image(driver, ad, file_path_abs):
             total_upload_time += 1
 
         if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
-            log.warning("\tCould not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
+            log.warning("Could not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
         else:
-            log.debug("\tUploaded file in %s seconds" % total_upload_time)
+            log.debug("Uploaded file in %s seconds" % total_upload_time)
     except NoSuchElementException:
         log.warning("Unable to find elements required for uploading images; skipping")
         pass
@@ -374,7 +374,7 @@ def post_upload_path(driver, ad, path_abs):
 
 def post_ad(driver, ad):
 
-    log.info("\tPublishing ad '%s' ..." % (ad["title"],))
+    log.info("Publishing ad '%s' ..." % (ad["title"],))
 
     # Sanitize ad values if not set
     if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
@@ -470,31 +470,31 @@ def post_ad(driver, ad):
         fHasCaptcha = post_ad_has_captcha(driver, ad)
         if fHasCaptcha:
             if g_fInteractive:
-                log.info("\t*** Manual captcha input needed! ***")
-                log.info("\tFill out captcha and submit, after that press Enter here to continue ...")
+                log.info("*** Manual captcha input needed! ***")
+                log.info("Fill out captcha and submit, after that press Enter here to continue ...")
                 wait_key()
             else:
-                log.info("\tCaptcha input needed, but running in non-interactive mode! Skipping ...")
+                log.info("Captcha input needed, but running in non-interactive mode! Skipping ...")
                 fRc = False
 
     if fRc:
         try:
             submit_button = driver.find_element_by_id('prview-btn-post').click()
         except NoSuchElementException:
-            log.info("\tPreview button not found, skipping")
+            log.info("Preview button not found, skipping")
             pass
 
         try:
             parsed_q = parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
             addId = parsed_q.get('adId', None)[0]
-            log.info("\tPosted as: %s" % driver.current_url)
+            log.info("Posted as: %s" % driver.current_url)
             if "id" not in ad:
-                log.info("\tNew ad ID: %s" % addId)
+                log.info("New ad ID: %s" % addId)
                 ad["date_published"] = datetime.utcnow()
 
             ad["id"]           = addId
         except:
-            log.error("\tUnable to parse posted ad ID")
+            log.error("Unable to parse posted ad ID")
             fRc = False
 
         # Make sure to update the updated timestamp, even if we weren't able
@@ -502,7 +502,7 @@ def post_ad(driver, ad):
         ad["date_updated"] = datetime.utcnow()
 
     if fRc is False:
-        log.error("\tError publishing ad '%s'" % (ad["title"],))
+        log.error("Error publishing ad '%s'" % (ad["title"],))
 
     return fRc
 
@@ -655,10 +655,10 @@ if __name__ == '__main__':
         if  "enabled" in ad \
         and ad["enabled"] == "1":
             if "date_published" in ad:
-                log.info("\tAlready published (%d days ago)" % dtDiff.days)
+                log.info("Already published (%d days ago)" % dtDiff.days)
                 glob_update_after_days = int(config.get('glob_update_after_days'))
                 if dtDiff.days > glob_update_after_days:
-                    log.info("\tCustom global update interval (%d days) set and needs to be updated" % \
+                    log.info("Custom global update interval (%d days) set and needs to be updated" % \
                              glob_update_after_days)
                     fNeedsUpdate = True
 
@@ -668,14 +668,14 @@ if __name__ == '__main__':
 
                 if  ad_update_after_days != 0 \
                 and dtDiff.days > ad_update_after_days:
-                    log.info("\tAd has a specific update interval (%d days) and needs to be updated" % \
+                    log.info("Ad has a specific update interval (%d days) and needs to be updated" % \
                              ad_update_after_days)
                     fNeedsUpdate = True
             else:
-                log.info("\tNot published yet")
+                log.info("Not published yet")
                 fNeedsUpdate = True
         else:
-            log.info("\tDisabled, skipping")
+            log.info("Disabled, skipping")
 
         if fNeedsUpdate \
         or fForceUpdate:
