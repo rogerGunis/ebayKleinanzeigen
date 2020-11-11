@@ -392,17 +392,23 @@ def post_ad(driver, ad):
 
     driver.get('https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html')
 
-    # Click to post a new ad
-    driver.find_element_by_id('site-mainnav-postad-link').click()
-    fake_wait(randint(4000, 8000))
+    # Click to post a new ad.
+    try:
+        driver.find_element_by_id('site-mainnav-postad-link').click()
+        fake_wait(randint(4000, 8000))
+    except:
+        log.error("Post ad button not found!")
+        return False
 
     # Find out where we are; might be some A/B testing the site does ...
     try:
-        e = driver.find_element_by_id('pstad-lnk-chngeCtgry')
-        if e:
-            e.click()
+        e = driver.find_element_by_id('pstad-lnk-chngeCtgry').click()
     except:
         pass
+
+    # Whether to skip this ad or not.
+    # Don't handle this as a fatal error (fRc = False), to continue posting the other ads.
+    fSkip = False 
 
     # Change category
     dQuery = parse.parse_qs(ad["caturl"])
@@ -420,24 +426,27 @@ def post_ad(driver, ad):
                     fake_wait()
                 except:
                     log.warning("Category not existing (anymore); skipping")
-                    return False
+                    fSkip = True
             try:
                 driver.find_element_by_id('postad-step1-sbmt').submit()
                 fake_wait(randint(1000, 2000))
             except:
                 log.error("Category submit button not found, skipping")
-                return False
+                return False # This is fatal though.
         else:
             log.warning("Invalid category URL specified; skipping")
-            return False
+            fSkip = True
     else:
         log.warning("No category specified; skipping")
-        return False
+        fSkip = True
+
+    # Skipping an ad is not fatal to other ads.
+    if fSkip:
+        return True
 
     # Check if posting an ad is allowed / possible
-    fRc = post_ad_is_allowed(driver, ad)
-    if fRc is False:
-        return fRc
+    if not post_ad_is_allowed(driver, ad):
+        return False
 
     # Some categories needs this
     post_ad_mandatory_fields_set(driver, ad)
@@ -471,7 +480,7 @@ def post_ad(driver, ad):
         if sPhotoPathDir:
             post_upload_path(driver, ad, os.path.join(sPhotoPathRoot, sPhotoPathDir))
     else:
-        log.info("No global photo path specified, skipping photo uploads")
+        log.warning("No global photo path specified, skipping photo uploads")
 
     fake_wait()
 
@@ -480,49 +489,43 @@ def post_ad(driver, ad):
         driver.find_element_by_id('pstad-frmprview').click()
     except:
         log.error("Submit button not found!")
-        fRc = False
+        return False
 
     fake_wait()
 
-    if fRc:
-        fHasCaptcha = post_ad_has_captcha(driver, ad)
-        if fHasCaptcha:
-            if g_fInteractive:
-                log.info("*** Manual captcha input needed! ***")
-                log.info("Fill out captcha and submit, after that press Enter here to continue ...")
-                wait_key()
-            else:
-                log.info("Captcha input needed, but running in non-interactive mode! Skipping ...")
-                fRc = False
+    fHasCaptcha = post_ad_has_captcha(driver, ad)
+    if fHasCaptcha:
+        if g_fInteractive:
+            log.warning("*** Manual captcha input needed! ***")
+            log.warning("Fill out captcha and submit, after that press Enter here to continue ...")
+            wait_key()
+        else:
+            log.warning("Captcha input needed, but running in non-interactive mode! Skipping ...")
+            return False
 
-    if fRc:
-        try:
-            submit_button = driver.find_element_by_id('prview-btn-post').click()
-        except NoSuchElementException:
-            log.info("Preview button not found, skipping")
-            pass
+    try:
+        submit_button = driver.find_element_by_id('prview-btn-post').click()
+    except NoSuchElementException:
+        log.error("Preview button not found, skipping")
+        return False
 
-        try:
-            parsed_q = parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
-            addId = parsed_q.get('adId', None)[0]
-            log.info("Posted as: %s" % driver.current_url)
-            if "id" not in ad:
-                log.info("New ad ID: %s" % addId)
-                ad["date_published"] = datetime.utcnow()
+    try:
+        parsed_q = parse.parse_qs(urllib.parse.urlparse(driver.current_url).query)
+        addId = parsed_q.get('adId', None)[0]
+        log.info("Posted as: %s" % driver.current_url)
+        if "id" not in ad:
+            log.info("New ad ID: %s" % addId)
+            ad["date_published"] = datetime.utcnow()
 
-            ad["id"]           = addId
-        except:
-            log.error("Unable to parse posted ad ID")
-            fRc = False
+        ad["id"] = addId
+    except:
+        log.warning("Unable to parse posted ad ID")
 
         # Make sure to update the updated timestamp, even if we weren't able
         # to find the (new) ad ID.
         ad["date_updated"] = datetime.utcnow()
 
-    if fRc is False:
-        log.error("Error publishing ad '%s'" % (ad["title"],))
-
-    return fRc
+    return True
 
 def session_create(config):
 
