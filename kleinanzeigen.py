@@ -542,7 +542,7 @@ class Kleinanzeigen:
                 self.log.info("Set ID: %s", adId)
                 ad["date_published"] = datetime.utcnow()
 
-            if adIs is not None:
+            if adId is not None:
                 ad["id"] = adId
         except:
             self.log.warning("Unable to parse posted ad ID")
