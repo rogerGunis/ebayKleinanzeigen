@@ -176,30 +176,15 @@ class Kleinanzeigen:
 
     def make_screenshot(self, driver, sPathAbs):
 
-        # Taken from: https://stackoverflow.com/questions/37906704/taking-a-whole-page-screenshot-with-selenium-marionette-in-python
-        # and:        http://stackoverflow.com/questions/1145850/how-to-get-height-of-entire-document-with-javascript
-        js = 'return Math.max( document.body.scrollHeight, document.body.offsetHeight,  document.documentElement.clientHeight,  document.documentElement.scrollHeight,  document.documentElement.offsetHeight);'
-        scrollheight = driver.execute_script(js)
-        slices = []
-        offset = 0
-        while offset < scrollheight:
-            driver.execute_script("window.scrollTo(0, %s);" % offset)
-            img = Image.open(io.StringIO(driver.get_screenshot_as_png()))
-            offset += img.size[1]
-            slices.append(img)
-
-        screenshot = Image.new('RGB', (slices[0].size[0], scrollheight))
-        offset = 0
-        for img in slices:
-            screenshot.paste(img, (0, offset))
-            offset += img.size[1]
-
         sFileName = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
         sFilePath = os.path.join(sPathAbs, sFileName)
 
         self.log.debug("Saving screenshot to '%s'", sFilePath)
 
-        screenshot.save(sFilePath)
+        # Taken from: https://pythonbasics.org/selenium-screenshot/
+        S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
+        driver.set_window_size(S('Width'),S('Height')) # May need manual adjustment
+        driver.find_element_by_tag_name('body').screenshot(sFilePath)
 
     def delete_ad(self, driver, ad):
 
