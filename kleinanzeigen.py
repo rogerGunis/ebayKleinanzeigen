@@ -113,10 +113,10 @@ class Kleinanzeigen:
 
     def login(self, driver, config):
         fRc = True
-        self.log.info("self.logging in ...")
+        self.log.info("Logging in ...")
         driver.set_page_load_timeout(90)
         try:
-            driver.get('https://www.ebay-kleinanzeigen.de/m-einself.loggen.html?targetUrl=/')
+            driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html?targetUrl=/')
 
             self.log.info('Waitng for login page ...')
 
