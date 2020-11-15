@@ -494,10 +494,25 @@ class Kleinanzeigen:
 
         self.fake_waitt()
 
+        #
+        # Submit ad
+        #
+        fSubmitted = False
+        self.log.info("Submitting ad ...")
         try:
-            self.log.info("Submitting ad ...")
             driver.find_element_by_id('pstad-frmprview').click()
+            fSubmitted = True
         except:
+            pass
+
+        if not fSubmitted:
+            try:
+                driver.find_element_by_id('pstad-submit').click()
+                fSubmitted = True
+            except:
+                pass
+
+        if not fSubmitted:
             self.log.error("Submit button not found!")
             return False
 
