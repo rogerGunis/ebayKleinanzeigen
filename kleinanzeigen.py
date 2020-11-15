@@ -28,6 +28,9 @@ from datetime import datetime
 from urllib import parse
 import dateutil.parser
 
+from PIL import Image
+from cStringIO import StringIO
+
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
@@ -50,6 +53,8 @@ class Kleinanzeigen:
         self.fInteractive = True
         # Whether to run in headless mode or not.
         self.fHeadless    = False
+        # Output directory, if needed. Set to /tmp/ by default.
+        self.sPathOut     = '/tmp/'
 
         json.JSONEncoder.default = \
             lambda self, obj: \
@@ -166,6 +171,33 @@ class Kleinanzeigen:
             msSleep = 100
         self.log.debug("Waiting %d ms ...", msSleep)
         time.sleep(msSleep / 1000)
+
+    def make_screenshot(self, driver, sPathAbs):
+
+        # Taken from: https://stackoverflow.com/questions/37906704/taking-a-whole-page-screenshot-with-selenium-marionette-in-python
+        # and:        http://stackoverflow.com/questions/1145850/how-to-get-height-of-entire-document-with-javascript
+        js = 'return Math.max( document.body.scrollHeight, document.body.offsetHeight,  document.documentElement.clientHeight,  document.documentElement.scrollHeight,  document.documentElement.offsetHeight);'
+        scrollheight = driver.execute_script(js)
+        slices = []
+        offset = 0
+        while offset < scrollheight:
+            driver.execute_script("window.scrollTo(0, %s);" % offset)
+            img = Image.open(StringIO(driver.get_screenshot_as_png()))
+            offset += img.size[1]
+            slices.append(img)
+
+        screenshot = Image.new('RGB', (slices[0].size[0], scrollheight))
+        offset = 0
+        for img in slices:
+            screenshot.paste(img, (0, offset))
+            offset += img.size[1]
+
+        sFileName = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
+        sFilePath = os.path.join(sPathAbs, sFileName)
+
+        self.log.debug("Saving screenshot to '%s'", sFilePath)
+
+        screenshot.save(sFilePath)
 
     def delete_ad(self, driver, ad):
 
@@ -660,7 +692,7 @@ class Kleinanzeigen:
         signal.signal(signal.SIGINT, signal_handler)
 
         try:
-            aOpts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "debug", "headless", "non-interactive", "help" ])
+            aOpts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "debug", "headless", "outdir=", "non-interactive", "help" ])
         except getopt.GetoptError as msg:
             print(msg)
             print('For help use --help')
@@ -679,6 +711,8 @@ class Kleinanzeigen:
                 self.log_stream.setLevel(logging.DEBUG)
                 self.log_fh.setLevel(logging.DEBUG)
                 self.log.setLevel(logging.DEBUG)
+            elif o in '--outdir':
+                self.sPathOut = a
 
         if not sCurProfile:
             print('No profile specified')
@@ -766,6 +800,8 @@ class Kleinanzeigen:
 
                 fPosted = self.post_ad(oDriver, oCurConfig, oCurAd)
                 if not fPosted:
+                    if self.fHeadless:
+                        self.make_screenshot(oDriver, self.sPathOut)
                     break
 
                 self.log.info("Waiting for handling next ad ...")
