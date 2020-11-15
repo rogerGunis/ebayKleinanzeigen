@@ -528,10 +528,11 @@ class Kleinanzeigen:
                 self.log.warning("Captcha input needed, but running in non-interactive mode! Skipping ...")
                 return False
 
+        # Somes there is a preview button shown. Handle this if necessary.
         try:
             driver.find_element_by_id('prview-btn-post').click()
         except NoSuchElementException:
-            self.log.warning("Preview button not found / available, continuing ...")
+            self.log.debug("Preview button not found / available, continuing ...")
 
         try:
             self.log.info("Posted as: %s", driver.current_url)
