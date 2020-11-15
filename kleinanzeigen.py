@@ -49,6 +49,8 @@ def signal_handler(sig, frame):
 
 class Kleinanzeigen:
     def __init__(self):
+        # Whether debugging mode is active or not.
+        self.fDebug       = False
         # Whether to run in interactive mode or not.
         self.fInteractive = True
         # Whether to run in headless mode or not.
@@ -708,6 +710,7 @@ class Kleinanzeigen:
             elif o in '--non-interactive':
                 self.fInteractive = False
             elif o in '--debug':
+                self.fDebug = True
                 self.log_stream.setLevel(logging.DEBUG)
                 self.log_fh.setLevel(logging.DEBUG)
                 self.log.setLevel(logging.DEBUG)
@@ -798,9 +801,8 @@ class Kleinanzeigen:
                 self.delete_ad(oDriver, oCurAd)
                 self.fake_waitt(randint(12222, 17777))
 
-                fPosted = self.post_ad(oDriver, oCurConfig, oCurAd)
-                if not fPosted:
-                    if self.fHeadless:
+                if not self.post_ad(oDriver, oCurConfig, oCurAd):
+                    if self.fDebug:
                         self.make_screenshot(oDriver, self.sPathOut)
                     break
 
