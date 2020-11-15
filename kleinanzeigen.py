@@ -392,6 +392,88 @@ class Kleinanzeigen:
                 continue
             self.post_upload_image(driver, ad, path_abs + filename)
 
+    def post_submit(self, driver, config, ad):
+        """
+        Submits a (pre-filled) ad
+        """
+        _ = config
+
+        self.log.debug("Current URL before posting is: %s", driver.current_url)
+
+        #
+        # Find the (right) submit button.
+        # Start with the most obvious one.
+        #
+        fSubmitBtnFound = False
+        self.log.info("Submitting ad ...")
+        try:
+            driver.find_element_by_id('pstad-submit').click()
+            fSubmitBtnFound = True
+        except:
+            self.log.debug("pstad-submit not found")
+
+        if not fSubmitBtnFound:
+            try:
+                driver.find_element_by_id('pstad-frmprview').click()
+                fSubmitBtnFound = True
+            except:
+                self.log.debug("pstad-frmprview not found")
+
+        if not fSubmitBtnFound:
+            try:
+                driver.find_element_by_id('prview-btn-post').click()
+                fSubmitBtnFound = True
+            except:
+                self.log.debug("prview-btn-post not found")
+
+        if not fSubmitBtnFound:
+            self.log.error("Submit button not found!")
+            return False
+
+        self.fake_waitt()
+
+        #
+        # Check if there is a Captcha we need to handle.
+        #
+        fHasCaptcha = self.post_ad_has_captcha(driver, ad)
+        if fHasCaptcha:
+            if self.fInteractive:
+                self.log.warning("*** Manual captcha input needed! ***")
+                self.log.warning("Fill out captcha and submit, after that press Enter here to continue ...")
+                self.wait_key()
+            else:
+                self.log.warning("Captcha input needed, but running in non-interactive mode! Skipping ...")
+                return False
+
+        self.log.debug("Current URL after posting is: %s", driver.current_url)
+
+        if "#anker" in driver.current_url:
+            self.log.warning("Site reported an error while posting. Might be due to missing (mandatory) information.")
+            return False
+
+        #
+        # Get ad ID from URL.
+        #
+        try:
+            parsed_q = parse.parse_qs(parse.urlparse(driver.current_url).query)
+            adId = parsed_q.get('adId', None)[0]
+            self.log.info("Ad ID is: %s", adId)
+            if "id" not in ad:
+                self.log.info("Set ID: %s", adId)
+                ad["date_published"] = datetime.utcnow()
+
+            if adId is not None:
+                ad["id"] = adId
+        except:
+            self.log.warning("Unable to parse posted ad ID")
+
+            # Make sure to update the updated timestamp, even if we weren't able
+            # to find the (new) ad ID.
+            ad["date_updated"] = datetime.utcnow()
+
+        self.log.info("Ad successfully submitted")
+        return True
+
     def post_ad(self, driver, config, ad):
 
         self.log.info("Publishing ad '%s' ...", ad["title"])
@@ -494,57 +576,8 @@ class Kleinanzeigen:
 
         self.fake_waitt()
 
-        #
-        # Submit ad
-        #
-        fSubmitted = False
-        self.log.info("Submitting ad ...")
-        try:
-            driver.find_element_by_id('pstad-submit').click()
-            fSubmitted = True
-        except:
-            pass
-
-        if not fSubmitted:
-            try:
-                driver.find_element_by_id('pstad-frmprview').click()
-                fSubmitted = True
-            except:
-                pass
-
-        if not fSubmitted:
-            self.log.error("Submit button not found!")
+        if not self.post_submit(driver, config, ad):
             return False
-
-        self.fake_waitt()
-
-        fHasCaptcha = self.post_ad_has_captcha(driver, ad)
-        if fHasCaptcha:
-            if self.fInteractive:
-                self.log.warning("*** Manual captcha input needed! ***")
-                self.log.warning("Fill out captcha and submit, after that press Enter here to continue ...")
-                self.wait_key()
-            else:
-                self.log.warning("Captcha input needed, but running in non-interactive mode! Skipping ...")
-                return False
-
-        try:
-            self.log.info("Posted as: %s", driver.current_url)
-            parsed_q = parse.parse_qs(parse.urlparse(driver.current_url).query)
-            adId = parsed_q.get('adId', None)[0]
-            self.log.info("Ad ID is: %s", adId)
-            if "id" not in ad:
-                self.log.info("Set ID: %s", adId)
-                ad["date_published"] = datetime.utcnow()
-
-            if adId is not None:
-                ad["id"] = adId
-        except:
-            self.log.warning("Unable to parse posted ad ID")
-
-            # Make sure to update the updated timestamp, even if we weren't able
-            # to find the (new) ad ID.
-            ad["date_updated"] = datetime.utcnow()
 
         return True
 
