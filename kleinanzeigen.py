@@ -102,13 +102,13 @@ class Kleinanzeigen:
         fRc = False
         try:
             e = WebDriverWait(driver, 5).until(
-                expected_conditions.presence_of_element_located((By.ID, "self.login-recaptcha"))
+                expected_conditions.presence_of_element_located((By.ID, "login-recaptcha"))
                 )
             if e:
                 fRc = True
         except TimeoutException:
             pass
-        self.log.info("self.login Captcha: %s", fRc)
+        self.log.info("Login Captcha: %s", fRc)
         return fRc
 
     def login(self, driver, config):
@@ -118,43 +118,43 @@ class Kleinanzeigen:
         try:
             driver.get('https://www.ebay-kleinanzeigen.de/m-einself.loggen.html?targetUrl=/')
 
-            self.log.info('Waitng for self.login page ...')
+            self.log.info('Waitng for login page ...')
 
             # Accept (click) GDPR banner
             WebDriverWait(driver, 180).until(
                 expected_conditions.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
 
-            self.log.info('Sending self.login credentials ...')
+            self.log.info('Sending login credentials ...')
 
             # Send e-mail
             WebDriverWait(driver, 180).until(
-                expected_conditions.presence_of_element_located((By.ID, "self.login-email"))
+                expected_conditions.presence_of_element_located((By.ID, "login-email"))
             ).send_keys(config['glob_username'])
             self.fake_waitt()
 
             # Send password
-            driver.find_element_by_id('self.login-password').send_keys(config['glob_password'])
+            driver.find_element_by_id('login-password').send_keys(config['glob_password'])
             self.fake_waitt()
 
             # Check for captcha
             fHasCaptcha = self.login_has_captcha(driver)
             if fHasCaptcha:
                 if self.fInteractive:
-                    self.log.info("*** Manual self.login captcha input needed! ***")
+                    self.log.info("*** Manual login captcha input needed! ***")
                     self.log.info("Fill out captcha and submit, after that press Enter here to continue ...")
                     self.wait_key()
                 else:
-                    self.log.info("self.login captcha input needed, but running in non-interactive mode! Skipping ...")
+                    self.log.info("Login captcha input needed, but running in non-interactive mode! Skipping ...")
                     fRc = False
             else:
-                driver.find_element_by_id('self.login-submit').click()
+                driver.find_element_by_id('login-submit').click()
 
         except TimeoutException:
-            self.log.info("Unable to self.login -- loading site took too long?")
+            self.log.info("Unable to login -- loading site took too long?")
             fRc = False
 
         except NoSuchElementException:
-            self.log.info("Unable to self.login -- self.login form element(s) not found")
+            self.log.info("Unable to login -- Login form element(s) not found")
             fRc = False
 
         return fRc
@@ -713,7 +713,7 @@ class Kleinanzeigen:
                         self.fake_waitt(randint(12222, 17777))
                         fNeedsUpdate = False
                     else:
-                        self.log.info('self.login failed')
+                        self.log.info('Login failed')
                         break
 
                 self.delete_ad(oDriver, oCurAd)
