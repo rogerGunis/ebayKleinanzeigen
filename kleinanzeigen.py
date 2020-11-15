@@ -660,7 +660,7 @@ class Kleinanzeigen:
         signal.signal(signal.SIGINT, signal_handler)
 
         try:
-            aOpts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "headless", "non-interactive", "help" ])
+            aOpts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "debug", "headless", "non-interactive", "help" ])
         except getopt.GetoptError as msg:
             print(msg)
             print('For help use --help')
