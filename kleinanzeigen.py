@@ -448,7 +448,7 @@ class Kleinanzeigen:
         self.log.debug("Current URL after posting is: %s", driver.current_url)
 
         if "#anker" in driver.current_url:
-            self.log.warning("Site reported an error while posting. Might be due to missing (mandatory) information.")
+            self.log.error("Site reported an error while posting. Might be due to missing (mandatory) information.")
             return False
 
         #
