@@ -500,14 +500,14 @@ class Kleinanzeigen:
         fSubmitted = False
         self.log.info("Submitting ad ...")
         try:
-            driver.find_element_by_id('pstad-frmprview').click()
+            driver.find_element_by_id('pstad-submit').click()
             fSubmitted = True
         except:
             pass
 
         if not fSubmitted:
             try:
-                driver.find_element_by_id('pstad-submit').click()
+                driver.find_element_by_id('pstad-frmprview').click()
                 fSubmitted = True
             except:
                 pass
@@ -527,12 +527,6 @@ class Kleinanzeigen:
             else:
                 self.log.warning("Captcha input needed, but running in non-interactive mode! Skipping ...")
                 return False
-
-        # Somes there is a preview button shown. Handle this if necessary.
-        try:
-            driver.find_element_by_id('prview-btn-post').click()
-        except NoSuchElementException:
-            self.log.debug("Preview button not found / available, continuing ...")
 
         try:
             self.log.info("Posted as: %s", driver.current_url)
