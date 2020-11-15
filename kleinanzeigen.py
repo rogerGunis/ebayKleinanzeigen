@@ -534,14 +534,16 @@ class Kleinanzeigen:
             self.log.warning("Preview button not found / available, continuing ...")
 
         try:
-            parsed_q = parse.parse_qs(parse.urlparse(driver.current_url).query)
-            addId = parsed_q.get('adId', None)[0]
             self.log.info("Posted as: %s", driver.current_url)
+            parsed_q = parse.parse_qs(parse.urlparse(driver.current_url).query)
+            adId = parsed_q.get('adId', None)[0]
+            self.log.info("Ad ID is: %s", adId)
             if "id" not in ad:
-                self.log.info("New ad ID: %s", addId)
+                self.log.info("Set ID: %s", adId)
                 ad["date_published"] = datetime.utcnow()
 
-            ad["id"] = addId
+            if adIs is not None:
+                ad["id"] = adId
         except:
             self.log.warning("Unable to parse posted ad ID")
 
