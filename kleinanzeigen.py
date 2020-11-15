@@ -14,6 +14,7 @@ from __future__ import division
 
 import json
 import getopt
+import io
 import os
 import re
 import signal
@@ -29,7 +30,6 @@ from urllib import parse
 import dateutil.parser
 
 from PIL import Image
-from cStringIO import StringIO
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
@@ -182,7 +182,7 @@ class Kleinanzeigen:
         offset = 0
         while offset < scrollheight:
             driver.execute_script("window.scrollTo(0, %s);" % offset)
-            img = Image.open(StringIO(driver.get_screenshot_as_png()))
+            img = Image.open(io.StringIO(driver.get_screenshot_as_png()))
             offset += img.size[1]
             slices.append(img)
 
