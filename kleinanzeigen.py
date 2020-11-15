@@ -516,8 +516,7 @@ class Kleinanzeigen:
         try:
             driver.find_element_by_id('prview-btn-post').click()
         except NoSuchElementException:
-            self.log.error("Preview button not found, skipping")
-            return False
+            self.log.warning("Preview button not found / available, continuing ...")
 
         try:
             parsed_q = parse.parse_qs(parse.urlparse(driver.current_url).query)
