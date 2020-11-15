@@ -185,7 +185,7 @@ class Kleinanzeigen:
                 try:
                     adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
                 except NoSuchElementException:
-                    self.log.warning("Not found by ID")
+                    self.log.debug("Not found by ID")
 
             if adIdElem is None:
                 self.log.info("Searching by title (%s)", ad["title"])
@@ -194,7 +194,7 @@ class Kleinanzeigen:
                     adId      = adIdElem.get_attribute("data-adid")
                     self.log.info("Ad ID is %s", adId)
                 except NoSuchElementException:
-                    self.log.warning("Not found by title")
+                    self.log.debug("Not found by title")
 
             if adIdElem is not None:
                 try:
