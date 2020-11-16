@@ -340,11 +340,11 @@ class Kleinanzeigen:
                                 # Skip empty options (defaults?)
                                 if not sValue:
                                     continue
-                                print("Value at index %d: %s" % (idxOpt, sValue))
+                                self.log.debug("Value at index %d: %s", idxOpt, sValue)
                                 if sValue == u"Bitte wählen":
                                     continue
                                 idxOpt += 1
-                            self.log.debug("Selecting value '%s'", sValue)
+                            self.log.info("Setting combo box '%s' to '%s'", sForIdRaw, sValue)
                             s.select_by_value(sValue)
                         self.fake_waitt()
                     else:
