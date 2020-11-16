@@ -385,7 +385,7 @@ class Kleinanzeigen:
         try:
             fileup = driver.find_element_by_xpath("//input[@type='file']")
             uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
-            self.log.debug("Uploading image: %s", file_path_abs)
+            self.log.info("Uploading image: %s", file_path_abs)
             fileup.send_keys(os.path.abspath(file_path_abs))
             total_upload_time = 0
             while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
@@ -408,6 +408,7 @@ class Kleinanzeigen:
         if not path_abs.endswith("/"):
             path_abs += "/"
         files = os.listdir(path_abs)
+        self.log.info("Uploading images from folder '%s' ...", path_abs)
         files.sort(reverse=False)
         for filename in files:
             if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
