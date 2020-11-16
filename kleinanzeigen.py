@@ -14,7 +14,6 @@ from __future__ import division
 
 import json
 import getopt
-import io
 import os
 import re
 import signal
@@ -28,8 +27,6 @@ import logging
 from datetime import datetime
 from urllib import parse
 import dateutil.parser
-
-from PIL import Image
 
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
@@ -336,13 +333,19 @@ class Kleinanzeigen:
                             fUseDefault = True
                         if fUseDefault:
                             s = Select(driver.find_element_by_id(sForId))
-                            iOpt = 0
+                            idxOpt = 0
+                            sValue = ""
                             for o in s.options:
+                                sValue = o.get_attribute("value")
                                 # Skip empty options (defaults?)
-                                if not o.get_attribute("value"):
-                                    break
-                                iOpt += 1
-                            s.select_by_value(s.options[iOpt].get_attribute("value"))
+                                if not sValue:
+                                    continue
+                                print("Value at index %d: %s" % (idxOpt, sValue))
+                                if sValue == u"Bitte wählen":
+                                    continue
+                                idxOpt += 1
+                            self.log.debug("Selecting value '%s'", sValue)
+                            s.select_by_value(sValue)
                         self.fake_waitt()
                     else:
                         sForIdRaw = sForId
