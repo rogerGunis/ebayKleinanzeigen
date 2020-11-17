@@ -490,9 +490,9 @@ class Kleinanzeigen:
         except:
             self.log.warning("Unable to parse posted ad ID")
 
-            # Make sure to update the updated timestamp, even if we weren't able
-            # to find the (new) ad ID.
-            ad["date_updated"] = datetime.utcnow()
+        # Make sure to update the updated timestamp, even if we weren't able
+        # to find the (new) ad ID.
+        ad["date_updated"] = datetime.utcnow()
 
         self.log.info("Ad successfully submitted")
         return True
