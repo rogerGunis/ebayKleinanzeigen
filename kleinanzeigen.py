@@ -497,13 +497,29 @@ class Kleinanzeigen:
         self.log.info("Ad successfully submitted")
         return True
 
+    def post_sanitize(self, ad):
+        """ Sanitizes ad config values if necessary. """
+
+        if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
+            ad["price_type"] = 'NEGOTIABLE'
+
+        dtNow = datetime.utcnow()
+        dtPub = datetime.strptime(ad["date_published"])
+        dtUpd = datetime.strptime(ad["date_updated"])
+        if dtPub > dtNow:
+            dtPub = dtNow
+        if dtUpd > dtNow:
+            dtUpd = dtNow
+        if dtUpd > dtPub:
+            dtUpd = dtPub
+        ad["date_published"] = dtPub
+        ad["date_updated"]   = dtUpd
+
     def post_ad(self, driver, config, ad):
 
         self.log.info("Publishing ad '%s' ...", ad["title"])
 
-        # Sanitize ad values if not set
-        if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
-            ad["price_type"] = 'NEGOTIABLE'
+        self.post_sanitize(ad)
 
         driver.get('https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html')
 
