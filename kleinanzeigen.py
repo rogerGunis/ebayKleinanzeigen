@@ -497,7 +497,7 @@ class Kleinanzeigen:
         self.log.info("Ad successfully submitted")
         return True
 
-    def post_sanitize(self, ad):
+    def post_ad_sanitize(self, ad):
         """ Sanitizes ad config values if necessary. """
 
         if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
@@ -519,7 +519,7 @@ class Kleinanzeigen:
 
         self.log.info("Publishing ad '%s' ...", ad["title"])
 
-        self.post_sanitize(ad)
+        self.post_ad_sanitize(ad)
 
         driver.get('https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html')
 
