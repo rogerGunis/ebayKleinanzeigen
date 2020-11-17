@@ -791,7 +791,7 @@ class Kleinanzeigen:
                 self.fake_waitt(randint(12222, 17777))
 
                 if not self.post_ad(oDriver, oCurConfig, oCurAd):
-                    if self.fDebug:
+                    if not self.fInteractive:
                         self.make_screenshot(oDriver, self.sPathOut)
                     break
 
