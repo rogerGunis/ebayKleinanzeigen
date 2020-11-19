@@ -180,9 +180,11 @@ class Kleinanzeigen:
 
     def logout(self, driver):
         """ Logs out from the current session. """
+        if driver is None:
+            return
         self.log.info("Logging out ...")
         driver.get('https://www.ebay-kleinanzeigen.de/m-abmelden.html')
-        
+
     def relogin(self, driver, config):
         """ Performs a re-login. """
         self.logout(driver)
@@ -564,7 +566,7 @@ class Kleinanzeigen:
         if "date_published" in ad:
             dtPub = datetime.strptime(ad["date_published"])
             if dtPub > dtNow:
-                dtPub = dtNow            
+                dtPub = dtNow
             ad["date_published"] = dtPub
         if "date_updated" in ad:
             dtUpd = datetime.strptime(ad["date_updated"])
