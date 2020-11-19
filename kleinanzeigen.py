@@ -186,7 +186,10 @@ class Kleinanzeigen:
         driver.get('https://www.ebay-kleinanzeigen.de/m-abmelden.html')
 
     def relogin(self, driver, config):
-        """ Performs a re-login. """
+        """
+        Performs a re-login.
+        """
+        self.log.info("Performing re-login ...")
         self.logout(driver)
         self.fake_wait(7777)
         self.login(driver, config)
@@ -762,6 +765,19 @@ class Kleinanzeigen:
 
         return driver
 
+    def session_expired(self, driver):
+        """
+        Checks if the Kleinanzeigen session is expired or not.
+        """
+        if driver is None:
+            return True
+
+        # Simply check the GET URL here for now
+        if "sessionExpired" in driver.current_url:
+            return True
+
+        return False
+
     def main(self):
         """
         Main function for this class.
@@ -876,10 +892,16 @@ class Kleinanzeigen:
                 self.delete_ad(oDriver, oCurAd)
                 self.fake_wait(randint(12222, 17777))
 
-                if not self.post_ad(oDriver, oCurConfig, oCurAd):
+                fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
+                if not fRc:
                     if not self.fInteractive:
                         self.make_screenshot(oDriver, self.sPathOut)
-                    break
+                        if self.session_expired(oDriver):
+                            self.relogin(oDriver, oCurConfig)
+                            fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
+
+                    if not fRc:
+                        break
 
                 self.log.info("Waiting for handling next ad ...")
                 self.fake_wait(randint(12222, 17777))
