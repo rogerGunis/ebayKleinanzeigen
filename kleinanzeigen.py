@@ -172,7 +172,7 @@ class Kleinanzeigen:
             fRc = False
 
         if fRc:
-            self.log.error("Login successful")
+            self.log.info("Login successful")
         else:
             self.log.error("Login failed")
 
