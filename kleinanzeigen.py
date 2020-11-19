@@ -561,16 +561,18 @@ class Kleinanzeigen:
             ad["price_type"] = 'NEGOTIABLE'
 
         dtNow = datetime.utcnow()
-        dtPub = datetime.strptime(ad["date_published"])
-        dtUpd = datetime.strptime(ad["date_updated"])
-        if dtPub > dtNow:
-            dtPub = dtNow
-        if dtUpd > dtNow:
-            dtUpd = dtNow
-        if dtUpd > dtPub:
-            dtUpd = dtPub
-        ad["date_published"] = dtPub
-        ad["date_updated"]   = dtUpd
+        if "date_published" in ad:
+            dtPub = datetime.strptime(ad["date_published"])
+            if dtPub > dtNow:
+                dtPub = dtNow            
+            ad["date_published"] = dtPub
+        if "date_updated" in ad:
+            dtUpd = datetime.strptime(ad["date_updated"])
+            if dtUpd > dtNow:
+                dtUpd = dtNow
+            if dtUpd > dtPub:
+                dtUpd = dtPub
+            ad["date_updated"] = dtUpd
 
     def post_ad(self, driver, config, ad):
         """
