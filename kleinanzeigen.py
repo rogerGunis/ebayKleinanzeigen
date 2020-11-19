@@ -144,11 +144,11 @@ class Kleinanzeigen:
             WebDriverWait(driver, 180).until(
                 expected_conditions.presence_of_element_located((By.ID, "login-email"))
             ).send_keys(config['glob_username'])
-            self.fake_waitt()
+            self.fake_wait()
 
             # Send password
             driver.find_element_by_id('login-password').send_keys(config['glob_password'])
-            self.fake_waitt()
+            self.fake_wait()
 
             # Check for captcha
             fHasCaptcha = self.login_has_captcha(driver)
@@ -188,10 +188,10 @@ class Kleinanzeigen:
     def relogin(self, driver, config):
         """ Performs a re-login. """
         self.logout(driver)
-        self.fake_waitt(7777)
+        self.fake_wait(7777)
         self.login(driver, config)
 
-    def fake_waitt(self, msSleep=None):
+    def fake_wait(self, msSleep=None):
         """
         Waits for a certain amount of time.
         """
@@ -227,7 +227,7 @@ class Kleinanzeigen:
         while fRc:
 
             driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
-            self.fake_waitt()
+            self.fake_wait()
 
             adIdElem = None
 
@@ -252,7 +252,7 @@ class Kleinanzeigen:
                     btn_del = adIdElem.find_element_by_class_name("managead-listitem-action-delete")
                     btn_del.click()
 
-                    self.fake_waitt()
+                    self.fake_wait()
 
                     try:
                         driver.find_element_by_id("modal-bulk-delete-ad-sbmt").click()
@@ -261,7 +261,7 @@ class Kleinanzeigen:
 
                     self.log.info("Ad deleted")
 
-                    self.fake_waitt(randint(2000, 3000))
+                    self.fake_wait(randint(2000, 3000))
                     webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
                 except NoSuchElementException:
@@ -352,7 +352,7 @@ class Kleinanzeigen:
             if sName in el.text:
                 sForId = el.get_attribute("for")
                 Select(driver.find_element_by_id(sForId)).select_by_visible_text(sValue)
-                self.fake_waitt()
+                self.fake_wait()
                 return True
         return False
 
@@ -394,7 +394,7 @@ class Kleinanzeigen:
                                 idxOpt += 1
                             self.log.info("Setting combo box '%s' to '%s'", sForIdRaw, sValue)
                             s.select_by_value(sValue)
-                        self.fake_waitt()
+                        self.fake_wait()
                     else:
                         sForIdRaw = sForId
                         if "field_" + sForIdRaw in ad:
@@ -404,7 +404,7 @@ class Kleinanzeigen:
                             sValue = 'Nicht angegeben'
                         try:
                             driver.find_element_by_id(sForId).send_keys(sValue)
-                            self.fake_waitt()
+                            self.fake_wait()
                         except:
                             pass
             except NoSuchElementException:
@@ -424,7 +424,7 @@ class Kleinanzeigen:
                 if len(lstLines) > 1:
                     e.send_keys(Keys.RETURN)
 
-            self.fake_waitt()
+            self.fake_wait()
 
     def post_field_select(self, driver, ad, field_id, sValue):
         """
@@ -432,7 +432,7 @@ class Kleinanzeigen:
         """
         _ = ad
         driver.find_element_by_xpath("//input[@name='%s' and @value='%s']" % (field_id, sValue)).click()
-        self.fake_waitt()
+        self.fake_wait()
 
     def post_upload_image(self, driver, ad, file_path_abs):
         """
@@ -447,7 +447,7 @@ class Kleinanzeigen:
             total_upload_time = 0
             while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
                     total_upload_time < 30:
-                self.fake_waitt(1000)
+                self.fake_wait(1000)
                 total_upload_time += 1
 
             if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
@@ -510,7 +510,7 @@ class Kleinanzeigen:
             self.log.error("Submit button not found!")
             return False
 
-        self.fake_waitt()
+        self.fake_wait()
 
         #
         # Check if there is a Captcha we need to handle.
@@ -589,7 +589,7 @@ class Kleinanzeigen:
         # Click to post a new ad.
         try:
             driver.find_element_by_id('site-mainnav-postad-link').click()
-            self.fake_waitt(randint(4000, 8000))
+            self.fake_wait(randint(4000, 8000))
         except:
             self.log.error("Post ad button not found!")
             return False
@@ -617,13 +617,13 @@ class Kleinanzeigen:
                     self.log.debug('Category: %s', sCat)
                     try:
                         driver.find_element_by_id('cat_' + sCat).click()
-                        self.fake_waitt()
+                        self.fake_wait()
                     except:
                         self.log.warning("Category not existing (anymore); skipping")
                         fSkip = True
                 try:
                     driver.find_element_by_id('postad-step1-sbmt').submit()
-                    self.fake_waitt(randint(1000, 2000))
+                    self.fake_wait(randint(1000, 2000))
                 except:
                     self.log.error("Category submit button not found, skipping")
                     return False # This is fatal though.
@@ -676,7 +676,7 @@ class Kleinanzeigen:
         else:
             self.log.warning("No global photo path specified, skipping photo uploads")
 
-        self.fake_waitt()
+        self.fake_wait()
 
         if not self.post_submit(driver, config, ad):
             return False
@@ -867,14 +867,14 @@ class Kleinanzeigen:
                     self.profile_write(sCurProfile, oCurConfig)
                     fRc = self.login(oDriver, oCurConfig)
                     if fRc:
-                        self.fake_waitt(randint(12222, 17777))
+                        self.fake_wait(randint(12222, 17777))
                         fNeedsUpdate = False
                     else:
                         self.log.info('Login failed')
                         break
 
                 self.delete_ad(oDriver, oCurAd)
-                self.fake_waitt(randint(12222, 17777))
+                self.fake_wait(randint(12222, 17777))
 
                 if not self.post_ad(oDriver, oCurConfig, oCurAd):
                     if not self.fInteractive:
@@ -882,7 +882,7 @@ class Kleinanzeigen:
                     break
 
                 self.log.info("Waiting for handling next ad ...")
-                self.fake_waitt(randint(12222, 17777))
+                self.fake_wait(randint(12222, 17777))
 
         # Make sure to update the profile's data before terminating.
         self.profile_write(sCurProfile, oCurConfig)
