@@ -119,7 +119,7 @@ class Kleinanzeigen:
                 fRc = True
         except TimeoutException:
             pass
-        self.log.info("Login Captcha: %s", fRc)
+        self.log.debug("Login Captcha: %s", fRc)
         return fRc
 
     def login(self, driver, config):
