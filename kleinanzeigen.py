@@ -122,13 +122,13 @@ class Kleinanzeigen:
         try:
             driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html?targetUrl=/')
 
-            self.log.info('Waitng for login page ...')
+            self.log.debug('Waitng for login page ...')
 
             # Accept (click) GDPR banner
             WebDriverWait(driver, 180).until(
                 expected_conditions.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
 
-            self.log.info('Sending login credentials ...')
+            self.log.debug('Sending login credentials ...')
 
             # Send e-mail
             WebDriverWait(driver, 180).until(
@@ -144,24 +144,40 @@ class Kleinanzeigen:
             fHasCaptcha = self.login_has_captcha(driver)
             if fHasCaptcha:
                 if self.fInteractive:
-                    self.log.info("*** Manual login captcha input needed! ***")
-                    self.log.info("Fill out captcha and submit, after that press Enter here to continue ...")
+                    self.log.warning("*** Manual login captcha input needed! ***")
+                    self.log.warning("Fill out captcha and submit, after that press Enter here to continue ...")
                     self.wait_key()
                 else:
-                    self.log.info("Login captcha input needed, but running in non-interactive mode! Skipping ...")
+                    self.log.warning("Login captcha input needed, but running in non-interactive mode! Skipping ...")
                     fRc = False
             else:
                 driver.find_element_by_id('login-submit').click()
 
         except TimeoutException:
-            self.log.info("Unable to login -- loading site took too long?")
+            self.log.error("Unable to login -- loading site took too long?")
             fRc = False
 
         except NoSuchElementException:
-            self.log.info("Unable to login -- Login form element(s) not found")
+            self.log.error("Unable to login -- Login form element(s) not found")
             fRc = False
 
+        if fRc:
+            self.log.error("Login successful")
+        else:
+            self.log.error("Login failed")
+
         return fRc
+
+    def logout(self, driver):
+        """ Logs out from the current session. """
+        self.log.info("Logging out ...")
+        driver.get('https://www.ebay-kleinanzeigen.de/m-abmelden.html')
+        
+    def relogin(self, driver, config):
+        """ Performs a re-login. """
+        self.logout(driver)
+        self.fake_waitt(7777)
+        self.login(driver, config)
 
     def fake_waitt(self, msSleep=None):
         if msSleep is None:
@@ -800,6 +816,9 @@ class Kleinanzeigen:
 
         # Make sure to update the profile's data before terminating.
         self.profile_write(sCurProfile, oCurConfig)
+
+        if fNeedsLogin:
+            self.logout(oDriver)
 
         self.log.info("Script done")
 
