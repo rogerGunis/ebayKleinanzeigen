@@ -76,7 +76,9 @@ class Kleinanzeigen:
         self.log.addHandler(self.log_fh)
 
     def profile_read(self, sProfile, oConfig):
-
+        """
+        Reads a profile from a file.
+        """
         self.log.info("Loading profile '%s'", (sProfile,))
 
         if not os.path.isfile(sProfile):
@@ -95,7 +97,9 @@ class Kleinanzeigen:
         return True
 
     def profile_write(self, sProfile, oConfig):
-
+        """
+        Saves (serializes) a profile to a file.
+        """
         self.log.info("Saving profile '%s'", sProfile)
 
         with open(sProfile, "w+", encoding='utf8') as fh_config:
@@ -103,6 +107,9 @@ class Kleinanzeigen:
             fh_config.write(text)
 
     def login_has_captcha(self, driver):
+        """
+        Returns if the login page has a Captcha or not.
+        """
         fRc = False
         try:
             e = WebDriverWait(driver, 5).until(
@@ -116,6 +123,9 @@ class Kleinanzeigen:
         return fRc
 
     def login(self, driver, config):
+        """
+        Logs into Kleinanzeigen.
+        """
         fRc = True
         self.log.info("Logging in ...")
         driver.set_page_load_timeout(90)
@@ -180,6 +190,9 @@ class Kleinanzeigen:
         self.login(driver, config)
 
     def fake_waitt(self, msSleep=None):
+        """
+        Waits for a certain amount of time.
+        """
         if msSleep is None:
             msSleep = randint(777, 3333)
         if msSleep < 100:
@@ -188,7 +201,9 @@ class Kleinanzeigen:
         time.sleep(msSleep / 1000)
 
     def make_screenshot(self, driver, sPathAbs):
-
+        """
+        Makes a screenshot of the current page.
+        """
         sFileName = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
         sFilePath = os.path.join(sPathAbs, sFileName)
 
@@ -200,7 +215,9 @@ class Kleinanzeigen:
         driver.find_element_by_tag_name('body').screenshot(sFilePath)
 
     def delete_ad(self, driver, ad):
-
+        """
+        Deletes an ad.
+        """
         self.log.info("Deleting ad '%s' ...", ad["title"])
 
         fRc = True
@@ -262,7 +279,9 @@ class Kleinanzeigen:
 
     # From: https://stackoverflow.com/questions/983354/how-do-i-make-python-to-wait-for-a-pressed-key
     def wait_key(self):
-        """ Wait for a key press on the console and return it. """
+        """
+        Wait for a key press on the console and return it.
+        """
         result = None
         if os.name == 'nt':
             result = input("Press Enter to continue ...")
@@ -284,7 +303,9 @@ class Kleinanzeigen:
         return result
 
     def post_ad_has_captcha(self, driver, ad):
-
+        """
+        Checks and returns if posting an ad needs to handle a Captcha first.
+        """
         _ = ad
         fRc  = False
 
@@ -300,7 +321,9 @@ class Kleinanzeigen:
         return fRc
 
     def post_ad_is_allowed(self, driver, ad):
-
+        """
+        Checks and returns if posting an ad currently is allowed.
+        """
         _ = ad
         fRc  = True
 
@@ -318,6 +341,9 @@ class Kleinanzeigen:
         return fRc
 
     def post_ad_mandatory_combobox_select(self, driver, ad, sName, sValue):
+        """
+        Selects a value from a specific combo box.
+        """
         _ = ad
         for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
             self.log.debug("Detected mandatory field: '%s'", el.text)
@@ -329,6 +355,10 @@ class Kleinanzeigen:
         return False
 
     def post_ad_mandatory_fields_set(self, driver, ad):
+        """
+        Tries to detect and (pre-)select all mandatory fields of an ad.
+        This is necessary in order to getting the ad posted.
+        """
         for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
             try:
                 sForId = el.get_attribute("for")
@@ -379,6 +409,9 @@ class Kleinanzeigen:
                 pass
 
     def post_field_set_text(self, driver, ad, field_id, sValue):
+        """
+        Sets text of specific text field.
+        """
         _ = ad
         if sValue:
             e = driver.find_element_by_id(field_id)
@@ -392,11 +425,17 @@ class Kleinanzeigen:
             self.fake_waitt()
 
     def post_field_select(self, driver, ad, field_id, sValue):
+        """
+        Selects (sets) a specific ad field.
+        """
         _ = ad
         driver.find_element_by_xpath("//input[@name='%s' and @value='%s']" % (field_id, sValue)).click()
         self.fake_waitt()
 
     def post_upload_image(self, driver, ad, file_path_abs):
+        """
+        Uploads a single image (picture) of an ad.
+        """
         _ = ad
         try:
             fileup = driver.find_element_by_xpath("//input[@type='file']")
@@ -506,20 +545,40 @@ class Kleinanzeigen:
         except:
             self.log.warning("Unable to parse posted ad ID")
 
-            # Make sure to update the updated timestamp, even if we weren't able
-            # to find the (new) ad ID.
-            ad["date_updated"] = datetime.utcnow()
+        # Make sure to update the updated timestamp, even if we weren't able
+        # to find the (new) ad ID.
+        ad["date_updated"] = datetime.utcnow()
 
         self.log.info("Ad successfully submitted")
         return True
 
-    def post_ad(self, driver, config, ad):
+    def post_ad_sanitize(self, ad):
+        """
+        Sanitizes ad config values if necessary.
+        """
 
-        self.log.info("Publishing ad '%s' ...", ad["title"])
-
-        # Sanitize ad values if not set
         if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
             ad["price_type"] = 'NEGOTIABLE'
+
+        dtNow = datetime.utcnow()
+        dtPub = datetime.strptime(ad["date_published"])
+        dtUpd = datetime.strptime(ad["date_updated"])
+        if dtPub > dtNow:
+            dtPub = dtNow
+        if dtUpd > dtNow:
+            dtUpd = dtNow
+        if dtUpd > dtPub:
+            dtUpd = dtPub
+        ad["date_published"] = dtPub
+        ad["date_updated"]   = dtUpd
+
+    def post_ad(self, driver, config, ad):
+        """
+        Main function to post an ad to Kleinanzeigen.
+        """
+        self.log.info("Publishing ad '%s' ...", ad["title"])
+
+        self.post_ad_sanitize(ad)
 
         driver.get('https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html')
 
@@ -621,7 +680,9 @@ class Kleinanzeigen:
         return True
 
     def session_create(self, config):
-
+        """
+        Creates a new browser / webdriver session.
+        """
         self.log.info("Creating session")
 
         # For now use the Chrome driver, as Firefox doesn't work (empy page)
@@ -664,7 +725,9 @@ class Kleinanzeigen:
         return driver
 
     def session_attach(self, config):
-
+        """
+        Tries to attach to a former (existing) webdriver session, if any.
+        """
         self.log.info("Trying to attach to session %s %s", config['session_id'], config['session_url'])
 
         # Save the original function, so we can revert our patch
@@ -696,6 +759,9 @@ class Kleinanzeigen:
         return driver
 
     def main(self):
+        """
+        Main function for this class.
+        """
         signal.signal(signal.SIGINT, signal_handler)
 
         try:
@@ -807,7 +873,7 @@ class Kleinanzeigen:
                 self.fake_waitt(randint(12222, 17777))
 
                 if not self.post_ad(oDriver, oCurConfig, oCurAd):
-                    if self.fDebug:
+                    if not self.fInteractive:
                         self.make_screenshot(oDriver, self.sPathOut)
                     break
 
