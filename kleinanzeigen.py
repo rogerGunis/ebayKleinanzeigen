@@ -209,7 +209,7 @@ class Kleinanzeigen:
         sFileName = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
         sFilePath = os.path.join(sPathAbs, sFileName)
 
-        self.log.info("Saving screenshot to '%s'", sFilePath)
+        self.log.info("Saving screenshot of %s to '%s'", driver.current_url, sFilePath)
 
         # Taken from: https://pythonbasics.org/selenium-screenshot/
         S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
