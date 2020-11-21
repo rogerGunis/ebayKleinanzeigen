@@ -567,14 +567,16 @@ class Kleinanzeigen:
 
         dtNow = datetime.utcnow()
         if "date_published" in ad:
-            dtPub = datetime.strptime(ad["date_published"])
+            dtPub = datetime.fromisoformat(ad["date_published"])
             if dtPub > dtNow:
                 dtPub = dtNow
             ad["date_published"] = dtPub
         if "date_updated" in ad:
-            dtUpd = datetime.strptime(ad["date_updated"])
+            dtUpd = datetime.fromisoformat(ad["date_updated"])
             if dtUpd > dtNow:
                 dtUpd = dtNow
+            if dtPub is None:
+                dtPub = dtUpd
             if dtUpd > dtPub:
                 dtUpd = dtPub
             ad["date_updated"] = dtUpd
