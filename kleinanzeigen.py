@@ -192,7 +192,7 @@ class Kleinanzeigen:
         self.log.info("Performing re-login ...")
         self.logout(driver)
         self.fake_wait(7777)
-        self.login(driver, config)
+        return self.login(driver, config)
 
     def fake_wait(self, msSleep=None):
         """
@@ -899,8 +899,12 @@ class Kleinanzeigen:
                     if not self.fInteractive:
                         self.make_screenshot(oDriver, self.sPathOut)
                         if self.session_expired(oDriver):
-                            self.relogin(oDriver, oCurConfig)
-                            fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
+                            fRc = self.relogin(oDriver, oCurConfig)
+                            if fRc:
+                                fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
+
+                            if not fRc:
+                                self.make_screenshot(oDriver, self.sPathOut)
 
                     if not fRc:
                         break
