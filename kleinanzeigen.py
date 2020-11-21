@@ -846,7 +846,7 @@ class Kleinanzeigen:
             self.post_ad_sanitize(oCurAd)
 
             if "date_updated" in oCurAd:
-                dtLastUpdated = dateutil.parser.parse(oCurAd["date_updated"])
+                dtLastUpdated = oCurAd["date_updated"]
             else:
                 dtLastUpdated = dtNow
             dtDiff            = dtNow - dtLastUpdated
