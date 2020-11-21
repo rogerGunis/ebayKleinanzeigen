@@ -567,12 +567,12 @@ class Kleinanzeigen:
 
         dtNow = datetime.utcnow()
         if "date_published" in ad:
-            dtPub = datetime.fromisoformat(ad["date_published"])
+            dtPub = dateutil.parser.parse(ad["date_published"])
             if dtPub > dtNow:
                 dtPub = dtNow
             ad["date_published"] = dtPub
         if "date_updated" in ad:
-            dtUpd = datetime.fromisoformat(ad["date_updated"])
+            dtUpd = dateutil.parser.parse(ad["date_updated"])
             if dtUpd > dtNow:
                 dtUpd = dtNow
             if dtPub is None:
@@ -586,8 +586,6 @@ class Kleinanzeigen:
         Main function to post an ad to Kleinanzeigen.
         """
         self.log.info("Publishing ad '%s' ...", ad["title"])
-
-        self.post_ad_sanitize(ad)
 
         driver.get('https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html')
 
@@ -844,6 +842,8 @@ class Kleinanzeigen:
             fNeedsUpdate = False
 
             self.log.info("Handling '%s'", oCurAd["title"])
+
+            self.post_ad_sanitize(oCurAd)
 
             if "date_updated" in oCurAd:
                 dtLastUpdated = dateutil.parser.parse(oCurAd["date_updated"])
