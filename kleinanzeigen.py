@@ -22,6 +22,11 @@ if os.name == 'posix':
     import termios
 import time
 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+
 from random import randint
 import logging
 from datetime import datetime
@@ -54,6 +59,8 @@ class Kleinanzeigen:
         self.fHeadless    = False
         # Output directory, if needed. Set to /tmp/ by default.
         self.sPathOut     = '/tmp/'
+        # Whether testing sending E-Mails should be performed or not.
+        self.fEmailTest   = False
 
         json.JSONEncoder.default = \
             lambda self, obj: \
@@ -75,11 +82,48 @@ class Kleinanzeigen:
         self.log.addHandler(self.log_stream)
         self.log.addHandler(self.log_fh)
 
+    def send_email(self, email_server_addr, email_server_port, \
+                   email_user, email_pw, \
+                   to_addr, from_addr, sub, body, files = None):
+        """
+        Sends an E-Mail.
+        """
+        msg = MIMEMultipart()
+        msg['From'] = from_addr
+        msg['To'] = to_addr
+        msg['Subject'] = sub
+        msg.attach(MIMEText(body, 'plain'))
+
+        if files is not None:
+            for cur_file in files:
+                fh = open(cur_file, "rb").read()
+                msg.attach(MIMEImage(fh, name=os.path.basename(cur_file)))
+                fh.close(fh)
+
+        self.log.debug("Sending mail with %s:%d", email_server_addr, email_server_port)
+
+        server = smtplib.SMTP(email_server_addr, email_server_port)
+        server.ehlo()
+        server.starttls()
+        server.login(email_user, email_pw)
+        server.sendmail(from_addr, to_addr, msg.as_string())
+        server.quit()
+
+    def send_email_profile(self, config, sub, msg, files = None):
+        """
+        Sends an E-Mail with the provided configuration.
+        """
+        if config['glob_email_enabled'] == "1":
+            self.log.info("Sending mail with subject '%s' ...", sub)
+            self.send_email(config['glob_email_server_addr'], int(config['glob_email_server_port']), \
+                            config['glob_email_user'], config['glob_email_pw'], \
+                            config['glob_email_to_addr'], config['glob_email_from_addr'], sub, msg, files)
+
     def profile_read(self, sProfile, oConfig):
         """
         Reads a profile from a file.
         """
-        self.log.info("Loading profile '%s'", (sProfile,))
+        self.log.debug("Loading profile '%s'", sProfile)
 
         if not os.path.isfile(sProfile):
             return False
@@ -208,6 +252,7 @@ class Kleinanzeigen:
     def make_screenshot(self, driver, sPathAbs):
         """
         Makes a screenshot of the current page.
+        Returns the absolute path to the screenshot file on success.
         """
         sFileName = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
         sFilePath = os.path.join(sPathAbs, sFileName)
@@ -218,6 +263,8 @@ class Kleinanzeigen:
         S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
         driver.set_window_size(S('Width'),S('Height')) # May need manual adjustment
         driver.find_element_by_tag_name('body').screenshot(sFilePath)
+
+        return sFilePath
 
     def delete_ad(self, driver, ad):
         """
@@ -785,7 +832,7 @@ class Kleinanzeigen:
         signal.signal(signal.SIGINT, signal_handler)
 
         try:
-            aOpts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "debug", "headless", "outdir=", "non-interactive", "help" ])
+            aOpts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "debug", "email-test", "headless", "outdir=", "non-interactive", "help" ])
         except getopt.GetoptError as msg:
             print(msg)
             print('For help use --help')
@@ -807,6 +854,8 @@ class Kleinanzeigen:
                 self.log.setLevel(logging.DEBUG)
             elif o in '--outdir':
                 self.sPathOut = a
+            elif o in '--email-test':
+                self.fEmailTest = True
 
         if not sCurProfile:
             print('No profile specified')
@@ -825,6 +874,13 @@ class Kleinanzeigen:
         if not self.profile_read(sCurProfile, oCurConfig):
             self.log.error("Profile file not found / accessible!")
             sys.exit(1)
+
+        if self.fEmailTest:
+            self.log.info("Sending test E-Mail ...")
+            self.send_email_profile(oCurConfig, \
+                                    "This is a test mail", \
+                                    "If you can read this, sending was successful!")
+            sys.exit(0)
 
         fRc          = True
         fNeedsLogin  = True
@@ -904,7 +960,9 @@ class Kleinanzeigen:
                                 fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
 
                             if not fRc:
-                                self.make_screenshot(oDriver, self.sPathOut)
+                                file_screenshot = self.make_screenshot(oDriver, self.sPathOut)
+                                self.send_email_profile(oCurConfig, "Posting ad failed", "See attached screenshot.", \
+                                                        file_screenshot)
 
                     if not fRc:
                         break
