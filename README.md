@@ -9,6 +9,8 @@
 ## Features
 
 - **New** Can send E-mails on failure, along with a screenshot of the browser session
+- **New** Refined logging (info, warning, error, debug)
+- **New** Now passes Python 3 linting
 - **New** Automatically deletes and re-publishes ad if existing one is too old
 - **New** Keeps track of ad publishing and last updating date
 - **New** Ability to selectively enable / disable ads being published / updated
