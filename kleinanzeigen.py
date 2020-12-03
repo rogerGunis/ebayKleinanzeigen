@@ -959,13 +959,14 @@ class Kleinanzeigen:
                             if fRc:
                                 fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
 
-                            if not fRc:
-                                file_screenshot = self.make_screenshot(oDriver, self.sPathOut)
-                                self.send_email_profile(oCurConfig, "Posting ad failed", "See attached screenshot.", \
-                                                        file_screenshot)
-
-                    if not fRc:
-                        break
+                if not fRc:
+                    file_screenshot = None
+                    if not self.fInteractive:
+                        file_screenshot = self.make_screenshot(oDriver, self.sPathOut)
+                    self.send_email_profile(oCurConfig, "Posting ad failed", "See attached screenshot.", \
+                                            file_screenshot)
+                if not fRc:
+                    break
 
                 self.log.info("Waiting for handling next ad ...")
                 self.fake_wait(randint(12222, 17777))
