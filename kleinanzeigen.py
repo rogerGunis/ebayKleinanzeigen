@@ -975,7 +975,7 @@ class Kleinanzeigen:
                     if not self.fInteractive:
                         file_screenshot = self.make_screenshot(oDriver, self.sPathOut)
                     self.send_email_profile(oCurConfig, "Posting ad failed", "See attached screenshot.", \
-                                            file_screenshot)
+                                            [ file_screenshot ])
                 if not fRc:
                     break
 
