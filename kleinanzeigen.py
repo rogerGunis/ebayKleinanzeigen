@@ -27,7 +27,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email.utils import formatdate
-import email.encoders
+from email import encoders
 
 from random import randint
 import logging
