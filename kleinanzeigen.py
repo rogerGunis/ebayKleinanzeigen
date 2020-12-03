@@ -61,6 +61,8 @@ class Kleinanzeigen:
         self.sPathOut     = '/tmp/'
         # Whether testing sending E-Mails should be performed or not.
         self.fEmailTest   = False
+        # Whether logged into user account or not.
+        self.fLoggedIn    = False
 
         json.JSONEncoder.default = \
             lambda self, obj: \
@@ -208,7 +210,7 @@ class Kleinanzeigen:
                 driver.find_element_by_id('login-submit').click()
 
         except TimeoutException:
-            self.log.error("Unable to login -- loading site took too long?")
+            self.log.error("Unable to login -- Loading site took too long?")
             fRc = False
 
         except NoSuchElementException:
@@ -220,14 +222,19 @@ class Kleinanzeigen:
         else:
             self.log.error("Login failed")
 
+        self.fLoggedIn = fRc
+
         return fRc
 
     def logout(self, driver):
         """ Logs out from the current session. """
         if driver is None:
             return
+        if not self.fLoggedIn:
+            return
         self.log.info("Logging out ...")
         driver.get('https://www.ebay-kleinanzeigen.de/m-abmelden.html')
+        self.fLoggedIn = False
 
     def relogin(self, driver, config):
         """
@@ -771,10 +778,13 @@ class Kleinanzeigen:
 
             driver = webdriver.Chrome(options=cr_options)
 
-        self.log.info("New session is: %s %s", driver.session_id, driver.command_executor._url)
+        if driver:
+            self.log.info("New driver session is: %s %s", driver.session_id, driver.command_executor._url)
 
-        config['session_id'] = driver.session_id
-        config['session_url'] = driver.command_executor._url
+            config['session_id'] = driver.session_id
+            config['session_url'] = driver.command_executor._url
+        else:
+            self.log.error("Creating driver session failed!")
 
         return driver
 
@@ -882,9 +892,7 @@ class Kleinanzeigen:
                                     "If you can read this, sending was successful!")
             sys.exit(0)
 
-        fRc          = True
-        fNeedsLogin  = True
-        fForceUpdate = False
+        fRc = True
 
         dtNow = datetime.utcnow()
 
@@ -932,21 +940,20 @@ class Kleinanzeigen:
             else:
                 self.log.info("Disabled, skipping")
 
-            if fNeedsUpdate \
-            or fForceUpdate:
+            if fNeedsUpdate:
 
-                if oDriver is None \
-                and fNeedsLogin:
+                if oDriver is None:
                     oDriver = self.session_create(oCurConfig)
-                    self.profile_write(sCurProfile, oCurConfig)
-                    fRc = self.login(oDriver, oCurConfig)
-                    if fRc:
-                        self.fake_wait(randint(12222, 17777))
-                        fNeedsUpdate = False
-                    else:
-                        self.log.info('Login failed')
+                    if oDriver is None:
                         break
 
+                self.profile_write(sCurProfile, oCurConfig)
+
+                fRc = self.login(oDriver, oCurConfig)
+                if not fRc:
+                    break
+
+                self.fake_wait(randint(12222, 17777))
                 self.delete_ad(oDriver, oCurAd)
                 self.fake_wait(randint(12222, 17777))
 
@@ -973,10 +980,7 @@ class Kleinanzeigen:
 
         # Make sure to update the profile's data before terminating.
         self.profile_write(sCurProfile, oCurConfig)
-
-        if fNeedsLogin:
-            self.logout(oDriver)
-
+        self.logout(oDriver)
         self.log.info("Script done")
 
 
