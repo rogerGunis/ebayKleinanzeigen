@@ -25,7 +25,9 @@ import time
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.image import MIMEImage
+from email.mime.base import MIMEBase
+from email.utils import formatdate
+import email.encoders
 
 from random import randint
 import logging
@@ -94,22 +96,27 @@ class Kleinanzeigen:
         msg['From'] = from_addr
         msg['To'] = to_addr
         msg['Subject'] = sub
+        msg['Date'] = formatdate(localtime = True)
         msg.attach(MIMEText(body, 'plain'))
 
         self.log.info("Sending e-mail with SMTP %s:%d", email_server_addr, email_server_port)
 
         if files is not None:
             for cur_file in files:
-                self.log.info("Attaching file '%s'", cur_file)
                 try:
-                    fh = open(cur_file, "rb").read()
-                    msg.attach(MIMEImage(fh, name=os.path.basename(cur_file)))
-                    fh.close(fh)
+                    self.log.info("Attaching file '%s'", cur_file)
+                    part = MIMEBase('application', "octet-stream")
+                    fh = open(cur_file, "rb")
+                    part.set_payload(fh.read())
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', 'attachment; filename="%s"' % os.path.basename(cur_file))
+                    msg.attach(part)
+                    fh.close()
                 except:
                     self.log.error("Attaching file '%s' failed", cur_file)
 
         server = smtplib.SMTP(email_server_addr, email_server_port)
-        server.ehlo()
+        server.ehlo_or_helo_if_needed()
         server.starttls()
         server.login(email_user, email_pw)
         server.sendmail(from_addr, to_addr, msg.as_string())
