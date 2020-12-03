@@ -96,13 +96,17 @@ class Kleinanzeigen:
         msg['Subject'] = sub
         msg.attach(MIMEText(body, 'plain'))
 
+        self.log.info("Sending e-mail with SMTP %s:%d", email_server_addr, email_server_port)
+
         if files is not None:
             for cur_file in files:
-                fh = open(cur_file, "rb").read()
-                msg.attach(MIMEImage(fh, name=os.path.basename(cur_file)))
-                fh.close(fh)
-
-        self.log.debug("Sending mail with %s:%d", email_server_addr, email_server_port)
+                self.log.info("Attaching file '%s'", cur_file)
+                try:
+                    fh = open(cur_file, "rb").read()
+                    msg.attach(MIMEImage(fh, name=os.path.basename(cur_file)))
+                    fh.close(fh)
+                except:
+                    self.log.error("Attaching file '%s' failed", cur_file)
 
         server = smtplib.SMTP(email_server_addr, email_server_port)
         server.ehlo()
