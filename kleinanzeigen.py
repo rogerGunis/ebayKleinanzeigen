@@ -65,6 +65,8 @@ class Kleinanzeigen:
         self.fEmailTest   = False
         # Whether logged into user account or not.
         self.fLoggedIn    = False
+        # Absolute file path for log file, if any.
+        self.sLogFileAbs  = None
 
         json.JSONEncoder.default = \
             lambda self, obj: \
@@ -75,15 +77,28 @@ class Kleinanzeigen:
 
         self.log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-        self.log_fh = logging.FileHandler('kleinanzeigen.self.log')
-        self.log_fh.setLevel(logging.INFO)
-        self.log_fh.setFormatter(self.log_formatter)
-
         self.log_stream = logging.StreamHandler()
         self.log_stream.setLevel(logging.INFO)
         self.log_stream.setFormatter(self.log_formatter)
 
         self.log.addHandler(self.log_stream)
+
+    def init_logfile(self, sPathAbs):
+        """
+        Initializes the logfile.
+        """
+        sFileName = "kleinanzeigen_" + time.strftime("%Y%m%d-%H%M%S") + ".log"
+
+        self.sLogFileAbs = os.path.join(sPathAbs, sFileName)
+        self.log.debug("Log file is '%s'", self.sLogFileAbs)
+
+        self.log_fh = logging.FileHandler(self.sLogFileAbs)
+        if self.fDebug:
+            self.log_fh.setLevel(logging.DEBUG)
+        else:
+            self.log_fh.setLevel(logging.INFO)
+        self.log_fh.setFormatter(self.log_formatter)
+
         self.log.addHandler(self.log_fh)
 
     def send_email(self, email_server_addr, email_server_port, \
@@ -131,6 +146,12 @@ class Kleinanzeigen:
             self.send_email(config['glob_email_server_addr'], int(config['glob_email_server_port']), \
                             config['glob_email_user'], config['glob_email_pw'], \
                             config['glob_email_to_addr'], config['glob_email_from_addr'], sub, msg, files)
+
+    def send_email_ad_error(self, config, ad, files = None):
+        sub = "Kleinanzeigen: Handling ad '%s' (profile '%s') failed" % (ad['title'], config['glob_username'])
+        if self.sLogFileAbs:
+            files.append(self.sLogFileAbs)
+        self.send_email_profile(config, sub, "See attached log file / screenshots.", files)
 
     def profile_read(self, sProfile, oConfig):
         """
@@ -871,7 +892,6 @@ class Kleinanzeigen:
             elif o in '--debug':
                 self.fDebug = True
                 self.log_stream.setLevel(logging.DEBUG)
-                self.log_fh.setLevel(logging.DEBUG)
                 self.log.setLevel(logging.DEBUG)
             elif o in '--outdir':
                 self.sPathOut = a
@@ -882,8 +902,11 @@ class Kleinanzeigen:
             print('No profile specified')
             sys.exit(2)
 
+        self.init_logfile(self.sPathOut)
+
         self.log.info('Script started')
         self.log.info("Using profile: %s", sCurProfile)
+        self.log.info("Output path is '%s'", self.sPathOut)
 
         if self.fHeadless:
             self.log.info("Running in headless mode")
@@ -981,8 +1004,7 @@ class Kleinanzeigen:
                     file_screenshot = None
                     if not self.fInteractive:
                         file_screenshot = self.make_screenshot(oDriver, self.sPathOut)
-                    self.send_email_profile(oCurConfig, "Posting ad failed", "See attached screenshot.", \
-                                            [ file_screenshot ])
+                    self.send_email_ad_error(oCurConfig, oCurAd, [ file_screenshot ])
                 if not fRc:
                     break
 
