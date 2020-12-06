@@ -32,7 +32,7 @@ from email import encoders
 
 from random import randint
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib import parse
 import dateutil.parser
 
@@ -415,23 +415,22 @@ class Kleinanzeigen:
 
         return fRc
 
-    def post_ad_is_allowed(self, driver, ad):
+    def post_ad_is_allowed(self, driver):
         """
         Checks and returns if posting an ad currently is allowed.
         """
-        _ = ad
         fRc  = True
 
         # Try checking for the monthly limit per account first.
         try:
             icon_insertionfees = driver.find_element_by_class_name('icon-insertionfees')
             if icon_insertionfees:
-                self.log.info("*** Monthly limit of free ads per account reached! Skipping ... ***")
+                self.log.warning("Monthly limit of free ads per account reached! Skipping ...")
                 fRc = False
         except NoSuchElementException:
             pass
 
-        self.log.info("Ad posting allowed: %s", fRc)
+        self.log.debug("Ad posting allowed: %s", fRc)
 
         return fRc
 
@@ -731,8 +730,10 @@ class Kleinanzeigen:
         if fSkip:
             return True
 
-        # Check if posting an ad is allowed / possible
-        if not self.post_ad_is_allowed(driver, ad):
+        # Check if posting an ad is allowed / possible.
+        if not self.post_ad_is_allowed(driver):
+            # Try again in 2 days (48h).
+            config['date_next_run'] = datetime.now() + timedelta(hours=48)
             return False
 
         # Some categories needs this
@@ -775,6 +776,92 @@ class Kleinanzeigen:
             return False
 
         return True
+
+    def handle_ads(self, profile_file, config):
+        """
+        Main function to handle the ads of a profile.
+        """
+        fRc = True
+
+        dtNow = datetime.utcnow()
+
+        for cur_ad in config["ads"]:
+
+            fNeedsUpdate = False
+
+            self.log.info("Handling '%s'", cur_ad["title"])
+
+            self.post_ad_sanitize(cur_ad)
+
+            if "date_updated" in cur_ad:
+                dtLastUpdated = cur_ad["date_updated"]
+            else:
+                dtLastUpdated = dtNow
+            dtDiff            = dtNow - dtLastUpdated
+
+            if  "enabled" in cur_ad \
+            and cur_ad["enabled"] == "1":
+                if "date_published" in cur_ad:
+                    self.log.info("Already published (%d days ago)", dtDiff.days)
+                    glob_update_after_days = int(config.get('glob_update_after_days'))
+                    if dtDiff.days > glob_update_after_days:
+                        self.log.info("Custom global update interval (%d days) set and needs to be updated", \
+                                glob_update_after_days)
+                        fNeedsUpdate = True
+
+                    ad_update_after_days = 0
+                    if "update_after_days" in cur_ad:
+                        ad_update_after_days = int(cur_ad["update_after_days"])
+
+                    if  ad_update_after_days != 0 \
+                    and dtDiff.days > ad_update_after_days:
+                        self.log.info("Ad has a specific update interval (%d days) and needs to be updated", \
+                                ad_update_after_days)
+                        fNeedsUpdate = True
+                else:
+                    self.log.info("Not published yet")
+                    fNeedsUpdate = True
+            else:
+                self.log.info("Disabled, skipping")
+
+            if fNeedsUpdate:
+
+                if driver is None:
+                    driver = self.session_create(config)
+                    if driver is None:
+                        break
+
+                self.profile_write(profile_file, config)
+
+                fRc = self.login(driver, config)
+                if not fRc:
+                    break
+
+                self.fake_wait(randint(12222, 17777))
+                self.delete_ad(driver, cur_ad)
+                self.fake_wait(randint(12222, 17777))
+
+                fRc = self.post_ad(driver, config, cur_ad)
+                if not fRc:
+                    if not self.fInteractive:
+                        self.make_screenshot(driver, self.sPathOut)
+                        if self.session_expired(driver):
+                            fRc = self.relogin(driver, config)
+                            if fRc:
+                                fRc = self.post_ad(driver, config, cur_ad)
+
+                if not fRc:
+                    file_screenshot = None
+                    if not self.fInteractive:
+                        file_screenshot = self.make_screenshot(driver, self.sPathOut)
+                    self.send_email_ad_error(config, cur_ad, [ file_screenshot ])
+                if not fRc:
+                    break
+
+                self.log.info("Waiting for handling next ad ...")
+                self.fake_wait(randint(12222, 17777))
+
+        return fRc
 
     def session_create(self, config):
         """
@@ -884,11 +971,11 @@ class Kleinanzeigen:
             print('For help use --help')
             sys.exit(2)
 
-        cur_profile = ""
+        profile_file = ""
 
         for o, a in aOpts:
             if o in '--profile':
-                cur_profile = a
+                profile_file = a
             elif o in '--headless':
                 self.fHeadless = True
             elif o in '--non-interactive':
@@ -902,14 +989,14 @@ class Kleinanzeigen:
             elif o in '--email-test':
                 self.fEmailTest = True
 
-        if not cur_profile:
+        if not profile_file:
             print('No profile specified')
             sys.exit(2)
 
         self.init_logfile(self.sPathOut)
 
         self.log.info('Script started')
-        self.log.info("Using profile: %s", cur_profile)
+        self.log.info("Using profile: %s", profile_file)
         self.log.info("Output path is '%s'", self.sPathOut)
 
         if self.fHeadless:
@@ -917,15 +1004,15 @@ class Kleinanzeigen:
         if not self.fInteractive:
             self.log.info("Running in non-interactive mode")
 
-        cur_config = {}
+        config = {}
 
-        if not self.profile_read(cur_profile, cur_config):
+        if not self.profile_read(profile_file, config):
             self.log.error("Profile file not found / accessible!")
             sys.exit(1)
 
         if self.fEmailTest:
             self.log.info("Sending test E-Mail ...")
-            self.send_email_profile(cur_config, \
+            self.send_email_profile(config, \
                                     "This is a test mail", \
                                     "If you can read this, sending was successful!")
             sys.exit(0)
@@ -936,87 +1023,22 @@ class Kleinanzeigen:
 
         driver = None
 
-        if cur_config.get('session_id') is not None:
-            driver = self.session_attach(cur_config)
+        if config.get('session_id') is not None:
+            driver = self.session_attach(config)
 
-        for cur_ad in cur_config["ads"]:
+        # Is this profile postponed to run at some later point in time?
+        if config.get('date_next_run') is not None:
+            dtNextRun = config['date_next_run']
+            if dtNow < dtNextRun:
+                self.log.info("Next run for this profile scheduled for %d/%d/%d, skipping", \
+                              dtNextRun.year, dtNextRun.month, dtNextRun.day)
+                fRc = False
 
-            fNeedsUpdate = False
-
-            self.log.info("Handling '%s'", cur_ad["title"])
-
-            self.post_ad_sanitize(cur_ad)
-
-            if "date_updated" in cur_ad:
-                dtLastUpdated = cur_ad["date_updated"]
-            else:
-                dtLastUpdated = dtNow
-            dtDiff            = dtNow - dtLastUpdated
-
-            if  "enabled" in cur_ad \
-            and cur_ad["enabled"] == "1":
-                if "date_published" in cur_ad:
-                    self.log.info("Already published (%d days ago)", dtDiff.days)
-                    glob_update_after_days = int(cur_config.get('glob_update_after_days'))
-                    if dtDiff.days > glob_update_after_days:
-                        self.log.info("Custom global update interval (%d days) set and needs to be updated", \
-                                glob_update_after_days)
-                        fNeedsUpdate = True
-
-                    ad_update_after_days = 0
-                    if "update_after_days" in cur_ad:
-                        ad_update_after_days = int(cur_ad["update_after_days"])
-
-                    if  ad_update_after_days != 0 \
-                    and dtDiff.days > ad_update_after_days:
-                        self.log.info("Ad has a specific update interval (%d days) and needs to be updated", \
-                                ad_update_after_days)
-                        fNeedsUpdate = True
-                else:
-                    self.log.info("Not published yet")
-                    fNeedsUpdate = True
-            else:
-                self.log.info("Disabled, skipping")
-
-            if fNeedsUpdate:
-
-                if driver is None:
-                    driver = self.session_create(cur_config)
-                    if driver is None:
-                        break
-
-                self.profile_write(cur_profile, cur_config)
-
-                fRc = self.login(driver, cur_config)
-                if not fRc:
-                    break
-
-                self.fake_wait(randint(12222, 17777))
-                self.delete_ad(driver, cur_ad)
-                self.fake_wait(randint(12222, 17777))
-
-                fRc = self.post_ad(driver, cur_config, cur_ad)
-                if not fRc:
-                    if not self.fInteractive:
-                        self.make_screenshot(driver, self.sPathOut)
-                        if self.session_expired(driver):
-                            fRc = self.relogin(driver, cur_config)
-                            if fRc:
-                                fRc = self.post_ad(driver, cur_config, cur_ad)
-
-                if not fRc:
-                    file_screenshot = None
-                    if not self.fInteractive:
-                        file_screenshot = self.make_screenshot(driver, self.sPathOut)
-                    self.send_email_ad_error(cur_config, cur_ad, [ file_screenshot ])
-                if not fRc:
-                    break
-
-                self.log.info("Waiting for handling next ad ...")
-                self.fake_wait(randint(12222, 17777))
+        if fRc:
+            fRc = self.handle_ads(profile_file, config)
 
         # Make sure to update the profile's data before terminating.
-        self.profile_write(cur_profile, cur_config)
+        self.profile_write(profile_file, config)
         self.logout(driver)
         self.log.info("Script done")
 
