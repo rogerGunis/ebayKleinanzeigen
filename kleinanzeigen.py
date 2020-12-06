@@ -157,35 +157,35 @@ class Kleinanzeigen:
             files.append(self.sLogFileAbs)
         self.send_email_profile(config, sub, "See attached log file / screenshots.", files)
 
-    def profile_read(self, sProfile, oConfig):
+    def profile_read(self, profile, config):
         """
         Reads a profile from a file.
         """
-        self.log.debug("Loading profile '%s'", sProfile)
+        self.log.debug("Loading profile '%s'", profile)
 
-        if not os.path.isfile(sProfile):
+        if not os.path.isfile(profile):
             return False
 
-        with open(sProfile, encoding="utf-8") as file:
-            oConfig.update(json.load(file))
+        with open(profile, encoding="utf-8") as file:
+            config.update(json.load(file))
 
         # Sanitize.
-        if oConfig['glob_phone_number'] is None:
-            oConfig['glob_phone_number'] = ''
+        if config['glob_phone_number'] is None:
+            config['glob_phone_number'] = ''
 
-        if oConfig['glob_street'] is None:
-            oConfig['glob_street'] = ''
+        if config['glob_street'] is None:
+            config['glob_street'] = ''
 
         return True
 
-    def profile_write(self, sProfile, oConfig):
+    def profile_write(self, profile, config):
         """
         Saves (serializes) a profile to a file.
         """
-        self.log.info("Saving profile '%s'", sProfile)
+        self.log.info("Saving profile '%s'", profile)
 
-        with open(sProfile, "w+", encoding='utf8') as fh_config:
-            text = json.dumps(oConfig, sort_keys=True, indent=4, ensure_ascii=False)
+        with open(profile, "w+", encoding='utf8') as fh_config:
+            text = json.dumps(config, sort_keys=True, indent=4, ensure_ascii=False)
             fh_config.write(text)
 
     def login_has_captcha(self, driver):
@@ -884,11 +884,11 @@ class Kleinanzeigen:
             print('For help use --help')
             sys.exit(2)
 
-        sCurProfile = ""
+        cur_profile = ""
 
         for o, a in aOpts:
             if o in '--profile':
-                sCurProfile = a
+                cur_profile = a
             elif o in '--headless':
                 self.fHeadless = True
             elif o in '--non-interactive':
@@ -902,14 +902,14 @@ class Kleinanzeigen:
             elif o in '--email-test':
                 self.fEmailTest = True
 
-        if not sCurProfile:
+        if not cur_profile:
             print('No profile specified')
             sys.exit(2)
 
         self.init_logfile(self.sPathOut)
 
         self.log.info('Script started')
-        self.log.info("Using profile: %s", sCurProfile)
+        self.log.info("Using profile: %s", cur_profile)
         self.log.info("Output path is '%s'", self.sPathOut)
 
         if self.fHeadless:
@@ -917,15 +917,15 @@ class Kleinanzeigen:
         if not self.fInteractive:
             self.log.info("Running in non-interactive mode")
 
-        oCurConfig = {}
+        cur_config = {}
 
-        if not self.profile_read(sCurProfile, oCurConfig):
+        if not self.profile_read(cur_profile, cur_config):
             self.log.error("Profile file not found / accessible!")
             sys.exit(1)
 
         if self.fEmailTest:
             self.log.info("Sending test E-Mail ...")
-            self.send_email_profile(oCurConfig, \
+            self.send_email_profile(cur_config, \
                                     "This is a test mail", \
                                     "If you can read this, sending was successful!")
             sys.exit(0)
@@ -934,38 +934,38 @@ class Kleinanzeigen:
 
         dtNow = datetime.utcnow()
 
-        oDriver = None
+        driver = None
 
-        if oCurConfig.get('session_id') is not None:
-            oDriver = self.session_attach(oCurConfig)
+        if cur_config.get('session_id') is not None:
+            driver = self.session_attach(cur_config)
 
-        for oCurAd in oCurConfig["ads"]:
+        for cur_ad in cur_config["ads"]:
 
             fNeedsUpdate = False
 
-            self.log.info("Handling '%s'", oCurAd["title"])
+            self.log.info("Handling '%s'", cur_ad["title"])
 
-            self.post_ad_sanitize(oCurAd)
+            self.post_ad_sanitize(cur_ad)
 
-            if "date_updated" in oCurAd:
-                dtLastUpdated = oCurAd["date_updated"]
+            if "date_updated" in cur_ad:
+                dtLastUpdated = cur_ad["date_updated"]
             else:
                 dtLastUpdated = dtNow
             dtDiff            = dtNow - dtLastUpdated
 
-            if  "enabled" in oCurAd \
-            and oCurAd["enabled"] == "1":
-                if "date_published" in oCurAd:
+            if  "enabled" in cur_ad \
+            and cur_ad["enabled"] == "1":
+                if "date_published" in cur_ad:
                     self.log.info("Already published (%d days ago)", dtDiff.days)
-                    glob_update_after_days = int(oCurConfig.get('glob_update_after_days'))
+                    glob_update_after_days = int(cur_config.get('glob_update_after_days'))
                     if dtDiff.days > glob_update_after_days:
                         self.log.info("Custom global update interval (%d days) set and needs to be updated", \
                                 glob_update_after_days)
                         fNeedsUpdate = True
 
                     ad_update_after_days = 0
-                    if "update_after_days" in oCurAd:
-                        ad_update_after_days = int(oCurAd["update_after_days"])
+                    if "update_after_days" in cur_ad:
+                        ad_update_after_days = int(cur_ad["update_after_days"])
 
                     if  ad_update_after_days != 0 \
                     and dtDiff.days > ad_update_after_days:
@@ -980,35 +980,35 @@ class Kleinanzeigen:
 
             if fNeedsUpdate:
 
-                if oDriver is None:
-                    oDriver = self.session_create(oCurConfig)
-                    if oDriver is None:
+                if driver is None:
+                    driver = self.session_create(cur_config)
+                    if driver is None:
                         break
 
-                self.profile_write(sCurProfile, oCurConfig)
+                self.profile_write(cur_profile, cur_config)
 
-                fRc = self.login(oDriver, oCurConfig)
+                fRc = self.login(driver, cur_config)
                 if not fRc:
                     break
 
                 self.fake_wait(randint(12222, 17777))
-                self.delete_ad(oDriver, oCurAd)
+                self.delete_ad(driver, cur_ad)
                 self.fake_wait(randint(12222, 17777))
 
-                fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
+                fRc = self.post_ad(driver, cur_config, cur_ad)
                 if not fRc:
                     if not self.fInteractive:
-                        self.make_screenshot(oDriver, self.sPathOut)
-                        if self.session_expired(oDriver):
-                            fRc = self.relogin(oDriver, oCurConfig)
+                        self.make_screenshot(driver, self.sPathOut)
+                        if self.session_expired(driver):
+                            fRc = self.relogin(driver, cur_config)
                             if fRc:
-                                fRc = self.post_ad(oDriver, oCurConfig, oCurAd)
+                                fRc = self.post_ad(driver, cur_config, cur_ad)
 
                 if not fRc:
                     file_screenshot = None
                     if not self.fInteractive:
-                        file_screenshot = self.make_screenshot(oDriver, self.sPathOut)
-                    self.send_email_ad_error(oCurConfig, oCurAd, [ file_screenshot ])
+                        file_screenshot = self.make_screenshot(driver, self.sPathOut)
+                    self.send_email_ad_error(cur_config, cur_ad, [ file_screenshot ])
                 if not fRc:
                     break
 
@@ -1016,8 +1016,8 @@ class Kleinanzeigen:
                 self.fake_wait(randint(12222, 17777))
 
         # Make sure to update the profile's data before terminating.
-        self.profile_write(sCurProfile, oCurConfig)
-        self.logout(oDriver)
+        self.profile_write(cur_profile, cur_config)
+        self.logout(driver)
         self.log.info("Script done")
 
 
