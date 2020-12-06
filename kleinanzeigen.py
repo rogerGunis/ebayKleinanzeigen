@@ -148,7 +148,7 @@ class Kleinanzeigen:
                             config['glob_email_to_addr'], config['glob_email_from_addr'], sub, msg, files)
 
     def send_email_ad_error(self, config, ad, files = None):
-        sub = "Kleinanzeigen: Handling ad '%s' (profile '%s') failed" % (ad['title'], config['glob_username'])
+        sub = "eBay Kleinanzeigen: Error handling ad '%s' (profile '%s')" % (ad['title'], config['glob_username'])
         if self.sLogFileAbs:
             files.append(self.sLogFileAbs)
         self.send_email_profile(config, sub, "See attached log file / screenshots.", files)
