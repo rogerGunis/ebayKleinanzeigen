@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=C0301,bad-whitespace,invalid-name
 # pylint: disable=C0111
+# pylint: disable=too-many-lines
 
 """
 Created on Tue Oct  6 00:15:14 2015
@@ -80,6 +81,9 @@ class Kleinanzeigen:
         self.log_stream = logging.StreamHandler()
         self.log_stream.setLevel(logging.INFO)
         self.log_stream.setFormatter(self.log_formatter)
+
+        # Logging to file gets initialized in init_logfile().
+        self.log_fh = None
 
         self.log.addHandler(self.log_stream)
 
