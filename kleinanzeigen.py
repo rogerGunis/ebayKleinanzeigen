@@ -781,6 +781,8 @@ class Kleinanzeigen:
         """
         Main function to handle the ads of a profile.
         """
+        driver = None
+
         fRc = True
 
         dtNow = datetime.utcnow()
