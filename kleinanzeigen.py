@@ -68,6 +68,8 @@ class Kleinanzeigen:
         self.fLoggedIn    = False
         # Absolute file path for log file, if any.
         self.sLogFileAbs  = None
+        # Array of absolute path names of taken screenshots, if any.
+        self.aScreenshots = []
 
         json.JSONEncoder.default = \
             lambda self, obj: \
@@ -86,6 +88,12 @@ class Kleinanzeigen:
         self.log_fh = None
 
         self.log.addHandler(self.log_stream)
+
+    def reset(self):
+        """
+        Resets internal variables for handling the next ad.
+        """
+        self.aScreenshots = []
 
     def init_logfile(self, sPathAbs):
         """
@@ -308,6 +316,14 @@ class Kleinanzeigen:
         driver.find_element_by_tag_name('body').screenshot(sFilePath)
 
         return sFilePath
+
+    def add_screenshot(self, driver):
+        """
+        Makes a screenshot and adds it to the list of screenshots
+        for this session.
+        """
+        file_screenshot = self.make_screenshot(driver, self.sPathOut)
+        self.aScreenshots.append(file_screenshot)
 
     def delete_ad(self, driver, ad):
         """
@@ -846,21 +862,21 @@ class Kleinanzeigen:
                 fRc = self.post_ad(driver, config, cur_ad)
                 if not fRc:
                     if not self.fInteractive:
-                        self.make_screenshot(driver, self.sPathOut)
+                        self.add_screenshot(driver)
                         if self.session_expired(driver):
                             fRc = self.relogin(driver, config)
                             if fRc:
                                 fRc = self.post_ad(driver, config, cur_ad)
 
                 if not fRc:
-                    file_screenshot = None
                     if not self.fInteractive:
-                        file_screenshot = self.make_screenshot(driver, self.sPathOut)
-                    self.send_email_ad_error(config, cur_ad, [ file_screenshot ])
+                        self.add_screenshot(driver)
+                    self.send_email_ad_error(config, cur_ad, self.aScreenshots)
                 if not fRc:
                     break
 
                 self.log.info("Waiting for handling next ad ...")
+                self.reset()
                 self.fake_wait(randint(12222, 17777))
 
         return fRc
