@@ -1030,7 +1030,7 @@ class Kleinanzeigen:
 
         # Is this profile postponed to run at some later point in time?
         if config.get('date_next_run') is not None:
-            dtNextRun = config['date_next_run']
+            dtNextRun = dateutil.parser.parse(config['date_next_run'])
             if dtNow < dtNextRun:
                 self.log.info("Next run for this profile scheduled for %d/%d/%d, skipping", \
                               dtNextRun.year, dtNextRun.month, dtNextRun.day)
