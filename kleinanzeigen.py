@@ -97,13 +97,13 @@ class Kleinanzeigen:
         """
         self.aScreenshots = []
 
-    def init_logfile(self, sPathAbs):
+    def init_logfile(self, path_abs):
         """
         Initializes the logfile.
         """
         sFileName = "kleinanzeigen_" + time.strftime("%Y%m%d-%H%M%S") + ".log"
 
-        self.sLogFileAbs = os.path.join(sPathAbs, sFileName)
+        self.sLogFileAbs = os.path.join(path_abs, sFileName)
         self.log.debug("Log file is '%s'", self.sLogFileAbs)
 
         self.log_fh = logging.FileHandler(self.sLogFileAbs)
@@ -222,23 +222,23 @@ class Kleinanzeigen:
         """
         Returns if the login page has a Captcha or not.
         """
-        fRc = False
+        rc = False
         try:
             e = WebDriverWait(driver, 5).until(
                 expected_conditions.presence_of_element_located((By.ID, "login-recaptcha"))
                 )
             if e:
-                fRc = True
+                rc = True
         except TimeoutException:
             pass
-        self.log.debug("Login Captcha: %s", fRc)
-        return fRc
+        self.log.debug("Login Captcha: %s", rc)
+        return rc
 
     def login(self, driver, config):
         """
         Logs into Kleinanzeigen.
         """
-        fRc = True
+        rc = True
         self.log.info("Logging in ...")
         driver.set_page_load_timeout(90)
         try:
@@ -271,27 +271,27 @@ class Kleinanzeigen:
                     self.wait_key()
                 else:
                     self.log.warning("Login captcha input needed, but running in non-interactive mode! Skipping ...")
-                    fRc = False
+                    rc = False
             else:
                 driver.find_element_by_id('login-submit').click()
 
         except TimeoutException:
             self.log.error("Unable to login -- Loading site took too long?")
-            fRc = False
+            rc = False
 
         except NoSuchElementException:
             self.log.error("Unable to login -- Login form element(s) not found")
-            fRc = False
+            rc = False
 
-        if fRc:
+        if rc:
             self.log.info("Login successful")
         else:
             self.add_screenshot(driver)
             self.log.error("Login failed")
 
-        self.fLoggedIn = fRc
+        self.fLoggedIn = rc
 
-        return fRc
+        return rc
 
     def logout(self, driver):
         """ Logs out from the current session. """
@@ -312,24 +312,24 @@ class Kleinanzeigen:
         self.fake_wait(7777)
         return self.login(driver, config)
 
-    def fake_wait(self, msSleep=None):
+    def fake_wait(self, ms_sleep=None):
         """
         Waits for a certain amount of time.
         """
-        if msSleep is None:
-            msSleep = randint(777, 3333)
-        if msSleep < 100:
-            msSleep = 100
-        self.log.debug("Waiting %d ms ...", msSleep)
-        time.sleep(msSleep / 1000)
+        if ms_sleep is None:
+            ms_sleep = randint(777, 3333)
+        if ms_sleep < 100:
+            ms_sleep = 100
+        self.log.debug("Waiting %d ms ...", ms_sleep)
+        time.sleep(ms_sleep / 1000)
 
-    def make_screenshot(self, driver, sPathAbs):
+    def make_screenshot(self, driver, path_abs):
         """
         Makes a screenshot of the current page.
         Returns the absolute path to the screenshot file on success.
         """
         sFileName = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
-        sFilePath = os.path.join(sPathAbs, sFileName)
+        sFilePath = os.path.join(path_abs, sFileName)
 
         self.log.info("Saving screenshot of %s to '%s'", driver.current_url, sFilePath)
 
@@ -354,9 +354,9 @@ class Kleinanzeigen:
         """
         self.log.info("Deleting ad '%s' ...", ad["title"])
 
-        fRc = True
+        rc = True
 
-        while fRc:
+        while rc:
 
             driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
             self.fake_wait()
@@ -398,18 +398,18 @@ class Kleinanzeigen:
 
                 except NoSuchElementException:
                     self.log.error("Delete button not found")
-                    fRc = False
+                    rc = False
                     break
             else:
                 self.log.info("Ad does not exist (anymore)")
                 break
 
-        if not fRc:
+        if not rc:
             self.log.error("Deleting ad failed")
 
         ad.pop("id", None)
 
-        return fRc
+        return rc
 
     # From: https://stackoverflow.com/questions/983354/how-do-i-make-python-to-wait-for-a-pressed-key
     def wait_key(self):
@@ -440,38 +440,38 @@ class Kleinanzeigen:
         """
         Checks and returns if posting an ad needs to handle a Captcha first.
         """
-        _ = ad
-        fRc  = False
+        _   = ad
+        rc  = False
 
         try:
             captcha_field = driver.find_element_by_xpath('//*[@id="postAd-recaptcha"]')
             if captcha_field:
-                fRc = True
+                rc = True
         except NoSuchElementException:
             pass
 
-        self.log.info("Captcha: %s", fRc)
+        self.log.info("Captcha: %s", rc)
 
-        return fRc
+        return rc
 
     def post_ad_is_allowed(self, driver):
         """
         Checks and returns if posting an ad currently is allowed.
         """
-        fRc  = True
+        rc  = True
 
         # Try checking for the monthly limit per account first.
         try:
             icon_insertionfees = driver.find_element_by_class_name('icon-insertionfees')
             if icon_insertionfees:
                 self.log.warning("Monthly limit of free ads per account reached! Skipping ...")
-                fRc = False
+                rc = False
         except NoSuchElementException:
             pass
 
-        self.log.debug("Ad posting allowed: %s", fRc)
+        self.log.debug("Ad posting allowed: %s", rc)
 
-        return fRc
+        return rc
 
     def post_ad_mandatory_combobox_select(self, driver, ad, sName, sValue):
         """
@@ -693,21 +693,21 @@ class Kleinanzeigen:
         if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
             ad["price_type"] = 'NEGOTIABLE'
 
-        dtNow = datetime.utcnow()
+        date_now = datetime.utcnow()
         if "date_published" in ad:
-            dtPub = dateutil.parser.parse(ad["date_published"])
-            if dtPub > dtNow:
-                dtPub = dtNow
-            ad["date_published"] = dtPub
+            date_pub = dateutil.parser.parse(ad["date_published"])
+            if date_pub > date_now:
+                date_pub = date_now
+            ad["date_published"] = date_pub
         if "date_updated" in ad:
-            dtUpd = dateutil.parser.parse(ad["date_updated"])
-            if dtUpd > dtNow:
-                dtUpd = dtNow
-            if dtPub is None:
-                dtPub = dtUpd
-            if dtUpd > dtPub:
-                dtUpd = dtPub
-            ad["date_updated"] = dtUpd
+            date_updated = dateutil.parser.parse(ad["date_updated"])
+            if date_updated > date_now:
+                date_updated = date_now
+            if date_pub is None:
+                date_pub = date_updated
+            if date_updated > date_pub:
+                date_updated = date_pub
+            ad["date_updated"] = date_updated
 
     def post_ad(self, driver, config, ad):
         """
@@ -732,7 +732,7 @@ class Kleinanzeigen:
             pass
 
         # Whether to skip this ad or not.
-        # Don't handle this as a fatal error (fRc = False), to continue posting the other ads.
+        # Don't handle this as a fatal error (rc = False), to continue posting the other ads.
         fSkip = False
 
         # Change category
@@ -790,22 +790,22 @@ class Kleinanzeigen:
         self.post_field_set_text(driver, ad, 'postad-contactname', config["glob_contact_name"])
         self.post_field_set_text(driver, ad, 'pstad-street',       config["glob_street"])
 
-        sPhotoPathRoot = config["glob_photo_path"]
-        if sPhotoPathRoot:
+        path_photo_root = config["glob_photo_path"]
+        if path_photo_root:
             # Upload images from photofiles
             if "photofiles" in ad:
-                for sPath in ad["photofiles"]:
-                    self.post_upload_image(driver, ad, os.path.join(sPhotoPathRoot, sPath))
+                for cur_photo_path in ad["photofiles"]:
+                    self.post_upload_image(driver, ad, os.path.join(path_photo_root, cur_photo_path))
 
             # Upload images from directories
-            sPhotoPathDir = ''
+            path_photo_dir = ''
             if 'photo_dir' in ad:
-                sPhotoPathDir = ad["photo_dir"]
+                path_photo_dir = ad["photo_dir"]
             elif 'photodir' in ad:
-                sPhotoPathDir = ad["photodir"]
+                path_photo_dir = ad["photodir"]
 
-            if sPhotoPathDir:
-                self.post_upload_path(driver, ad, os.path.join(sPhotoPathRoot, sPhotoPathDir))
+            if path_photo_dir:
+                self.post_upload_path(driver, ad, os.path.join(path_photo_root, path_photo_dir))
         else:
             self.log.warning("No global photo path specified, skipping photo uploads")
 
@@ -822,11 +822,11 @@ class Kleinanzeigen:
         """
         driver = None
 
-        fRc = True
+        rc = True
 
-        dtNow = datetime.utcnow()
+        date_now = datetime.utcnow()
 
-        fNeedsLogin = False
+        needs_login = False
 
         for cur_ad in config["ads"]:
 
@@ -837,17 +837,17 @@ class Kleinanzeigen:
             self.post_ad_sanitize(cur_ad)
 
             if "date_updated" in cur_ad:
-                dtLastUpdated = cur_ad["date_updated"]
+                date_lastupdated = cur_ad["date_updated"]
             else:
-                dtLastUpdated = dtNow
-            dtDiff            = dtNow - dtLastUpdated
+                date_lastupdated = date_now
+            date_diff            = date_now - date_lastupdated
 
             if  "enabled" in cur_ad \
             and cur_ad["enabled"] == "1":
                 if "date_published" in cur_ad:
-                    self.log.info("Already published (%d days ago)", dtDiff.days)
+                    self.log.info("Already published (%d days ago)", date_diff.days)
                     glob_update_after_days = int(config.get('glob_update_after_days'))
-                    if dtDiff.days > glob_update_after_days:
+                    if date_diff.days > glob_update_after_days:
                         self.log.info("Custom global update interval (%d days) set and needs to be updated", \
                                 glob_update_after_days)
                         fNeedsUpdate = True
@@ -857,7 +857,7 @@ class Kleinanzeigen:
                         ad_update_after_days = int(cur_ad["update_after_days"])
 
                     if  ad_update_after_days != 0 \
-                    and dtDiff.days > ad_update_after_days:
+                    and date_diff.days > ad_update_after_days:
                         self.log.info("Ad has a specific update interval (%d days) and needs to be updated", \
                                 ad_update_after_days)
                         fNeedsUpdate = True
@@ -876,38 +876,38 @@ class Kleinanzeigen:
 
                 self.profile_write(profile_file, config)
 
-                if fNeedsLogin:
-                    fRc = self.login(driver, config)
-                    if not fRc:
+                if needs_login:
+                    rc = self.login(driver, config)
+                    if not rc:
                         break
-                    fNeedsLogin = False
+                    needs_login = False
                     self.fake_wait(randint(12222, 17777))
 
                 self.delete_ad(driver, cur_ad)
                 self.fake_wait(randint(12222, 17777))
 
-                fRc = self.post_ad(driver, config, cur_ad)
-                if not fRc:
+                rc = self.post_ad(driver, config, cur_ad)
+                if not rc:
                     self.add_screenshot(driver)
                     if not self.fInteractive:
                         if self.session_expired(driver):
-                            fRc = self.relogin(driver, config)
-                            if fRc:
-                                fRc = self.post_ad(driver, config, cur_ad)
+                            rc = self.relogin(driver, config)
+                            if rc:
+                                rc = self.post_ad(driver, config, cur_ad)
 
-                if not fRc:
+                if not rc:
                     self.add_screenshot(driver)
-                if not fRc:
+                if not rc:
                     break
 
                 self.log.info("Waiting for handling next ad ...")
                 self.reset()
                 self.fake_wait(randint(12222, 17777))
 
-        if not fRc:
+        if not rc:
             self.send_email_error(config)
 
-        return fRc
+        return rc
 
     def session_create(self, config):
         """
@@ -1063,27 +1063,26 @@ class Kleinanzeigen:
                                     "If you can read this, sending was successful!")
             sys.exit(0)
 
-        fRc = True
+        rc = True
 
-        dtNow = datetime.utcnow()
-
-        driver = None
+        date_now = datetime.utcnow()
+        driver   = None
 
         if config.get('session_id') is not None:
             driver = self.session_attach(config)
 
         # Is this profile postponed to run at some later point in time?
         if config.get('date_next_run') is not None:
-            dtNextRun = dateutil.parser.parse(config['date_next_run'])
-            if dtNow < dtNextRun:
+            date_nextrun = dateutil.parser.parse(config['date_next_run'])
+            if date_now < date_nextrun:
                 self.log.info("Next run for this profile scheduled for %d/%d/%d, skipping", \
-                              dtNextRun.year, dtNextRun.month, dtNextRun.day)
-                fRc = False
+                              date_nextrun.year, date_nextrun.month, date_nextrun.day)
+                rc = False
 
-        if fRc:
-            fRc = self.handle_ads(profile_file, config)
+        if rc:
+            rc = self.handle_ads(profile_file, config)
 
-        if not fRc:
+        if not rc:
             self.send_email_error(config)
 
         # Make sure to update the profile's data before terminating.
