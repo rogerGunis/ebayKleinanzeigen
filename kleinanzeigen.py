@@ -91,6 +91,30 @@ class Kleinanzeigen:
 
         self.log.addHandler(self.log_stream)
 
+    def cleanup(self):
+        """
+        Does cleaning up work by removing intermediate files.
+        """
+        if self.fInteractive \
+        or self.fDebug:
+            return
+
+        self.log.info("Cleaning up ...")
+        for file_screenshot in self.aScreenshots:
+            self.log.debug("Removing screenshot '%s'", file_screenshot)
+            try:
+                os.remove(file_screenshot)
+            except:
+                pass
+        if self.sLogFileAbs:
+            self.log.debug("Removing logfile '%s'", self.sLogFileAbs)
+            try:
+                if self.log_fh:
+                    self.log.removeHandler(self.log_fh)
+                os.remove(self.sLogFileAbs)
+            except:
+                pass
+
     def reset(self):
         """
         Resets internal variables for handling the next ad.
@@ -1087,9 +1111,11 @@ class Kleinanzeigen:
 
         # Make sure to update the profile's data before terminating.
         self.profile_write(profile_file, config)
-        self.logout(driver)
-        self.log.info("Script done")
 
+        self.logout(driver)
+
+        self.log.info("Script done")
+        self.cleanup()
 
 if __name__ == '__main__':
     Kleinanzeigen().main()
