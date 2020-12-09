@@ -826,7 +826,7 @@ class Kleinanzeigen:
 
         date_now = datetime.utcnow()
 
-        needs_login = False
+        needs_login = True
 
         for cur_ad in config["ads"]:
 
