@@ -826,6 +826,8 @@ class Kleinanzeigen:
 
         dtNow = datetime.utcnow()
 
+        fNeedsLogin = False
+
         for cur_ad in config["ads"]:
 
             fNeedsUpdate = False
@@ -874,11 +876,13 @@ class Kleinanzeigen:
 
                 self.profile_write(profile_file, config)
 
-                fRc = self.login(driver, config)
-                if not fRc:
-                    break
+                if fNeedsLogin:
+                    fRc = self.login(driver, config)
+                    if not fRc:
+                        break
+                    fNeedsLogin = False
+                    self.fake_wait(randint(12222, 17777))
 
-                self.fake_wait(randint(12222, 17777))
                 self.delete_ad(driver, cur_ad)
                 self.fake_wait(randint(12222, 17777))
 
