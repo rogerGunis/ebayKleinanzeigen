@@ -64,6 +64,8 @@ class Kleinanzeigen:
         self.sPathOut     = '/tmp/'
         # Whether testing sending E-Mails should be performed or not.
         self.fEmailTest   = False
+        # How many E-Mails have been sent already.
+        self.cEmailSent   = 0
         # Whether logged into user account or not.
         self.fLoggedIn    = False
         # Absolute file path for log file, if any.
@@ -149,21 +151,41 @@ class Kleinanzeigen:
         server.sendmail(from_addr, to_addr, msg.as_string())
         server.quit()
 
+        return True
+
     def send_email_profile(self, config, sub, msg, files = None):
         """
         Sends an E-Mail with the provided configuration.
         """
         if config['glob_email_enabled'] == "1":
             self.log.info("Sending mail with subject '%s' ...", sub)
-            self.send_email(config['glob_email_server_addr'], int(config['glob_email_server_port']), \
-                            config['glob_email_user'], config['glob_email_pw'], \
-                            config['glob_email_to_addr'], config['glob_email_from_addr'], sub, msg, files)
+            return self.send_email(config['glob_email_server_addr'], int(config['glob_email_server_port']), \
+                                   config['glob_email_user'], config['glob_email_pw'], \
+                                   config['glob_email_to_addr'], config['glob_email_from_addr'], sub, msg, files)
+        return False
 
-    def send_email_ad_error(self, config, ad, files = None):
-        sub = "eBay Kleinanzeigen: Error handling ad '%s' (profile '%s')" % (ad['title'], config['glob_username'])
+    def send_email_error(self, config, ad = None):
+        """
+        Sends an E-Mail
+        """
+        if self.cEmailSent > 0:
+            return
+
+        if ad:
+            sub = "eBay Kleinanzeigen: Error handling ad '%s' (profile '%s')" % (ad['title'], config['glob_username'])
+        else:
+            sub = "eBay Kleinanzeigen: Error handling profile '%s'" % (config['glob_username'])
+
+        files = []
+        for file_screenshot in self.aScreenshots:
+            self.log.debug("Appending screenshot '%s'", file_screenshot)
+            files.append(file_screenshot)
         if self.sLogFileAbs:
+            self.log.debug("Appending log '%s'", self.sLogFileAbs)
             files.append(self.sLogFileAbs)
-        self.send_email_profile(config, sub, "See attached log file / screenshots.", files)
+
+        if self.send_email_profile(config, sub, "See attached log file / screenshots.", files):
+            self.cEmailSent += 1
 
     def profile_read(self, profile, config):
         """
@@ -264,6 +286,7 @@ class Kleinanzeigen:
         if fRc:
             self.log.info("Login successful")
         else:
+            self.add_screenshot(driver)
             self.log.error("Login failed")
 
         self.fLoggedIn = fRc
@@ -861,23 +884,24 @@ class Kleinanzeigen:
 
                 fRc = self.post_ad(driver, config, cur_ad)
                 if not fRc:
+                    self.add_screenshot(driver)
                     if not self.fInteractive:
-                        self.add_screenshot(driver)
                         if self.session_expired(driver):
                             fRc = self.relogin(driver, config)
                             if fRc:
                                 fRc = self.post_ad(driver, config, cur_ad)
 
                 if not fRc:
-                    if not self.fInteractive:
-                        self.add_screenshot(driver)
-                    self.send_email_ad_error(config, cur_ad, self.aScreenshots)
+                    self.add_screenshot(driver)
                 if not fRc:
                     break
 
                 self.log.info("Waiting for handling next ad ...")
                 self.reset()
                 self.fake_wait(randint(12222, 17777))
+
+        if not fRc:
+            self.send_email_error(config)
 
         return fRc
 
@@ -1054,6 +1078,9 @@ class Kleinanzeigen:
 
         if fRc:
             fRc = self.handle_ads(profile_file, config)
+
+        if not fRc:
+            self.send_email_error(config)
 
         # Make sure to update the profile's data before terminating.
         self.profile_write(profile_file, config)
