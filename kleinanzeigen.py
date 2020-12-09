@@ -1095,15 +1095,17 @@ class Kleinanzeigen:
         if config.get('session_id') is not None:
             driver = self.session_attach(config)
 
+        handle_ads = True
+
         # Is this profile postponed to run at some later point in time?
         if config.get('date_next_run') is not None:
             date_nextrun = dateutil.parser.parse(config['date_next_run'])
             if date_now < date_nextrun:
                 self.log.info("Next run for this profile scheduled for %d/%d/%d, skipping", \
                               date_nextrun.year, date_nextrun.month, date_nextrun.day)
-                rc = False
+                handle_ads = False
 
-        if rc:
+        if handle_ads:
             rc = self.handle_ads(profile_file, config)
 
         if not rc:
