@@ -287,8 +287,8 @@ class Kleinanzeigen:
             self.fake_wait()
 
             # Check for captcha
-            fHasCaptcha = self.login_has_captcha(driver)
-            if fHasCaptcha:
+            has_captcha = self.login_has_captcha(driver)
+            if has_captcha:
                 if self.fInteractive:
                     self.log.warning("*** Manual login captcha input needed! ***")
                     self.log.warning("Fill out captcha and submit, after that press Enter here to continue ...")
@@ -352,17 +352,17 @@ class Kleinanzeigen:
         Makes a screenshot of the current page.
         Returns the absolute path to the screenshot file on success.
         """
-        sFileName = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
-        sFilePath = os.path.join(path_abs, sFileName)
+        file_name = 'kleinanzeigen_' + time.strftime("%Y%m%d-%H%M%S") + ".png"
+        file_path = os.path.join(path_abs, file_name)
 
-        self.log.info("Saving screenshot of %s to '%s'", driver.current_url, sFilePath)
+        self.log.info("Saving screenshot of %s to '%s'", driver.current_url, file_path)
 
         # Taken from: https://pythonbasics.org/selenium-screenshot/
         S = lambda X: driver.execute_script('return document.body.parentNode.scroll'+X)
         driver.set_window_size(S('Width'),S('Height')) # May need manual adjustment
-        driver.find_element_by_tag_name('body').screenshot(sFilePath)
+        driver.find_element_by_tag_name('body').screenshot(file_path)
 
-        return sFilePath
+        return file_path
 
     def add_screenshot(self, driver):
         """
@@ -385,27 +385,27 @@ class Kleinanzeigen:
             driver.get("https://www.ebay-kleinanzeigen.de/m-meine-anzeigen.html")
             self.fake_wait()
 
-            adIdElem = None
+            ad_id_elem = None
 
             if "id" in ad:
                 self.log.info("Searching by ID (%s)", ad["id"])
                 try:
-                    adIdElem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
+                    ad_id_elem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
                 except NoSuchElementException:
                     self.log.debug("Not found by ID")
 
-            if adIdElem is None:
+            if ad_id_elem is None:
                 self.log.info("Searching by title (%s)", ad["title"])
                 try:
-                    adIdElem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
-                    adId      = adIdElem.get_attribute("data-adid")
+                    ad_id_elem  = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
+                    adId      = ad_id_elem.get_attribute("data-adid")
                     self.log.info("Ad ID is %s", adId)
                 except NoSuchElementException:
                     self.log.debug("Not found by title")
 
-            if adIdElem is not None:
+            if ad_id_elem is not None:
                 try:
-                    btn_del = adIdElem.find_element_by_class_name("managead-listitem-action-delete")
+                    btn_del = ad_id_elem.find_element_by_class_name("managead-listitem-action-delete")
                     btn_del.click()
 
                     self.fake_wait()
@@ -497,16 +497,16 @@ class Kleinanzeigen:
 
         return rc
 
-    def post_ad_mandatory_combobox_select(self, driver, ad, sName, sValue):
+    def post_ad_mandatory_combobox_select(self, driver, ad, name, value):
         """
         Selects a value from a specific combo box.
         """
         _ = ad
         for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
             self.log.debug("Detected mandatory field: '%s'", el.text)
-            if sName in el.text:
-                sForId = el.get_attribute("for")
-                Select(driver.find_element_by_id(sForId)).select_by_visible_text(sValue)
+            if name in el.text:
+                for_id = el.get_attribute("for")
+                Select(driver.find_element_by_id(for_id)).select_by_visible_text(value)
                 self.fake_wait()
                 return True
         return False
@@ -518,62 +518,62 @@ class Kleinanzeigen:
         """
         for el in driver.find_elements_by_xpath('//*[@class="formgroup-label-mandatory"]'):
             try:
-                sForId = el.get_attribute("for")
-                if sForId is not None:
-                    self.log.debug("Detected mandatory field (Name='%s', ID='%s')", el.text, sForId)
-                    reMatch = re.search(r'.*\.(.*)_s.*', sForId, re.IGNORECASE)
-                    if reMatch is not None:
-                        sForIdRaw = reMatch.group(1)
-                        fUseDefault = False
-                        if "field_" + sForIdRaw in ad:
+                for_id = el.get_attribute("for")
+                if for_id is not None:
+                    self.log.debug("Detected mandatory field (Name='%s', ID='%s')", el.text, for_id)
+                    re_match = re.search(r'.*\.(.*)_s.*', for_id, re.IGNORECASE)
+                    if re_match is not None:
+                        for_id_raw = re_match.group(1)
+                        use_default = False
+                        if "field_" + for_id_raw in ad:
                             try:
-                                Select(driver.find_element_by_id(sForId)).select_by_visible_text(ad["field_" + sForIdRaw])
+                                Select(driver.find_element_by_id(for_id)).select_by_visible_text(ad["field_" + for_id_raw])
                             except NoSuchElementException:
-                                self.log.warning("Value for combo box '%s' invalid in config, setting to default (first entry)", sForIdRaw)
-                                fUseDefault = True
+                                self.log.warning("Value for combo box '%s' invalid in config, setting to default (first entry)", for_id_raw)
+                                use_default = True
                         else:
-                            self.log.warning("No value for combo box '%s' defined, setting to default (first entry)", sForIdRaw)
-                            fUseDefault = True
-                        if fUseDefault:
-                            s = Select(driver.find_element_by_id(sForId))
-                            idxOpt = 0
-                            sValue = ""
+                            self.log.warning("No value for combo box '%s' defined, setting to default (first entry)", for_id_raw)
+                            use_default = True
+                        if use_default:
+                            s = Select(driver.find_element_by_id(for_id))
+                            idx_opt = 0
+                            value = ""
                             for o in s.options:
-                                sValue = o.get_attribute("value")
+                                value = o.get_attribute("value")
                                 # Skip empty options (defaults?)
-                                if not sValue:
+                                if not value:
                                     continue
-                                self.log.debug("Value at index %d: %s", idxOpt, sValue)
-                                if sValue == u"Bitte wählen":
+                                self.log.debug("Value at index %d: %s", idx_opt, value)
+                                if value == u"Bitte wählen":
                                     continue
-                                idxOpt += 1
-                            self.log.info("Setting combo box '%s' to '%s'", sForIdRaw, sValue)
-                            s.select_by_value(sValue)
+                                idx_opt += 1
+                            self.log.info("Setting combo box '%s' to '%s'", for_id_raw, value)
+                            s.select_by_value(value)
                         self.fake_wait()
                     else:
-                        sForIdRaw = sForId
-                        if "field_" + sForIdRaw in ad:
-                            sValue = ad["field_" + sForIdRaw]
+                        for_id_raw = for_id
+                        if "field_" + for_id_raw in ad:
+                            value = ad["field_" + for_id_raw]
                         else:
-                            self.log.warning("No value for text field '%s' defined, setting to empty value", sForIdRaw)
-                            sValue = 'Nicht angegeben'
+                            self.log.warning("No value for text field '%s' defined, setting to empty value", for_id_raw)
+                            value = 'Nicht angegeben'
                         try:
-                            driver.find_element_by_id(sForId).send_keys(sValue)
+                            driver.find_element_by_id(for_id).send_keys(value)
                             self.fake_wait()
                         except:
                             pass
             except NoSuchElementException:
                 pass
 
-    def post_field_set_text(self, driver, ad, field_id, sValue):
+    def post_field_set_text(self, driver, ad, field_id, value):
         """
         Sets text of specific text field.
         """
         _ = ad
-        if sValue:
+        if value:
             e = driver.find_element_by_id(field_id)
             e.clear()
-            lstLines = [x.strip('\\n') for x in sValue.split('\\n')]
+            lstLines = [x.strip('\\n') for x in value.split('\\n')]
             for sLine in lstLines:
                 e.send_keys(sLine)
                 if len(lstLines) > 1:
@@ -581,12 +581,12 @@ class Kleinanzeigen:
 
             self.fake_wait()
 
-    def post_field_select(self, driver, ad, field_id, sValue):
+    def post_field_select(self, driver, ad, field_id, value):
         """
         Selects (sets) a specific ad field.
         """
         _ = ad
-        driver.find_element_by_xpath("//input[@name='%s' and @value='%s']" % (field_id, sValue)).click()
+        driver.find_element_by_xpath("//input[@name='%s' and @value='%s']" % (field_id, value)).click()
         self.fake_wait()
 
     def post_upload_image(self, driver, ad, file_path_abs):
@@ -639,29 +639,29 @@ class Kleinanzeigen:
         # Find the (right) submit button.
         # Start with the most obvious one.
         #
-        fSubmitBtnFound = False
+        submit_btn_found = False
         self.log.info("Submitting ad ...")
         try:
             driver.find_element_by_id('pstad-submit').click()
-            fSubmitBtnFound = True
+            submit_btn_found = True
         except:
             self.log.debug("pstad-submit not found")
 
-        if not fSubmitBtnFound:
+        if not submit_btn_found:
             try:
                 driver.find_element_by_id('pstad-frmprview').click()
-                fSubmitBtnFound = True
+                submit_btn_found = True
             except:
                 self.log.debug("pstad-frmprview not found")
 
-        if not fSubmitBtnFound:
+        if not submit_btn_found:
             try:
                 driver.find_element_by_id('prview-btn-post').click()
-                fSubmitBtnFound = True
+                submit_btn_found = True
             except:
                 self.log.debug("prview-btn-post not found")
 
-        if not fSubmitBtnFound:
+        if not submit_btn_found:
             self.log.error("Submit button not found!")
             return False
 
@@ -670,8 +670,8 @@ class Kleinanzeigen:
         #
         # Check if there is a Captcha we need to handle.
         #
-        fHasCaptcha = self.post_ad_has_captcha(driver, ad)
-        if fHasCaptcha:
+        has_captcha = self.post_ad_has_captcha(driver, ad)
+        if has_captcha:
             if self.fInteractive:
                 self.log.warning("*** Manual captcha input needed! ***")
                 self.log.warning("Fill out captcha and submit, after that press Enter here to continue ...")
@@ -757,25 +757,25 @@ class Kleinanzeigen:
 
         # Whether to skip this ad or not.
         # Don't handle this as a fatal error (rc = False), to continue posting the other ads.
-        fSkip = False
+        skip = False
 
         # Change category
-        dQuery = parse.parse_qs(ad["caturl"])
-        if dQuery:
-            if 'https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path' in dQuery:
-                sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
-            elif 'https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path' in dQuery:
-                sPathCat = dQuery.get('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path')
+        cat_url = parse.parse_qs(ad["caturl"])
+        if cat_url:
+            if 'https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path' in cat_url:
+                path_cat = cat_url.get('https://www.ebay-kleinanzeigen.de/p-kategorie-aendern.html#?path')
+            elif 'https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path' in cat_url:
+                path_cat = cat_url.get('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html#?path')
 
-            if sPathCat:
-                for sCat in sPathCat[0].split('/'):
-                    self.log.debug('Category: %s', sCat)
+            if path_cat:
+                for cur_cat in path_cat[0].split('/'):
+                    self.log.debug('Category: %s', cur_cat)
                     try:
-                        driver.find_element_by_id('cat_' + sCat).click()
+                        driver.find_element_by_id('cat_' + cur_cat).click()
                         self.fake_wait()
                     except:
                         self.log.warning("Category not existing (anymore); skipping")
-                        fSkip = True
+                        skip = True
                 try:
                     driver.find_element_by_id('postad-step1-sbmt').submit()
                     self.fake_wait(randint(1000, 2000))
@@ -784,13 +784,13 @@ class Kleinanzeigen:
                     return False # This is fatal though.
             else:
                 self.log.warning("Invalid category URL specified; skipping")
-                fSkip = True
+                skip = True
         else:
             self.log.warning("No category specified; skipping")
-            fSkip = True
+            skip = True
 
         # Skipping an ad is not fatal to other ads.
-        if fSkip:
+        if skip:
             return True
 
         # Check if posting an ad is allowed / possible.
@@ -854,7 +854,7 @@ class Kleinanzeigen:
 
         for cur_ad in config["ads"]:
 
-            fNeedsUpdate = False
+            needs_update = False
 
             self.log.info("Handling '%s'", cur_ad["title"])
 
@@ -874,7 +874,7 @@ class Kleinanzeigen:
                     if date_diff.days > glob_update_after_days:
                         self.log.info("Custom global update interval (%d days) set and needs to be updated", \
                                 glob_update_after_days)
-                        fNeedsUpdate = True
+                        needs_update = True
 
                     ad_update_after_days = 0
                     if "update_after_days" in cur_ad:
@@ -884,14 +884,14 @@ class Kleinanzeigen:
                     and date_diff.days > ad_update_after_days:
                         self.log.info("Ad has a specific update interval (%d days) and needs to be updated", \
                                 ad_update_after_days)
-                        fNeedsUpdate = True
+                        needs_update = True
                 else:
                     self.log.info("Not published yet")
-                    fNeedsUpdate = True
+                    needs_update = True
             else:
                 self.log.info("Disabled, skipping")
 
-            if fNeedsUpdate:
+            if needs_update:
 
                 if driver is None:
                     driver = self.session_create(config)
@@ -940,9 +940,9 @@ class Kleinanzeigen:
         self.log.info("Creating session")
 
         # For now use the Chrome driver, as Firefox doesn't work (empy page)
-        fUseFirefox = False
+        use_firefox = False
 
-        if fUseFirefox:
+        if use_firefox:
             ff_options = FirefoxOptions()
             if self.fInteractive:
                 ff_options.add_argument("--headless")
@@ -1035,7 +1035,7 @@ class Kleinanzeigen:
         signal.signal(signal.SIGINT, signal_handler)
 
         try:
-            aOpts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "debug", "email-test", "headless", "outdir=", "non-interactive", "help" ])
+            opts, _ = getopt.gnu_getopt(sys.argv[1:], "ph", [ "profile=", "debug", "email-test", "headless", "outdir=", "non-interactive", "help" ])
         except getopt.GetoptError as msg:
             print(msg)
             print('For help use --help')
@@ -1043,7 +1043,7 @@ class Kleinanzeigen:
 
         profile_file = ""
 
-        for o, a in aOpts:
+        for o, a in opts:
             if o in '--profile':
                 profile_file = a
             elif o in '--headless':
