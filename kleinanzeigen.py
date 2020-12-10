@@ -52,6 +52,17 @@ def signal_handler(sig, frame):
     print('Exiting script')
     sys.exit(0)
 
+# Found on: https://stackoverflow.com/questions/812477/how-many-times-was-logging-error-called
+class CallCounted:
+    """Decorator to determine number of calls for a method"""
+    def __init__(self,method):
+        self.method=method
+        self.counter=0
+
+    def __call__(self,*args,**kwargs):
+        self.counter+=1
+        return self.method(*args,**kwargs)
+
 class Kleinanzeigen:
     def __init__(self):
         # Whether debugging mode is active or not.
@@ -76,6 +87,8 @@ class Kleinanzeigen:
         json.JSONEncoder.default = \
             lambda self, obj: \
                 (obj.isoformat() if isinstance(obj, datetime) else None)
+
+        logging.error = CallCounted(logging.error)
 
         self.log = logging.getLogger(__name__)
         self.log.setLevel(logging.INFO)
@@ -196,17 +209,21 @@ class Kleinanzeigen:
             return
 
         if ad:
-            sub = "eBay Kleinanzeigen: Error handling ad '%s' (profile '%s')" % (ad['title'], config['glob_username'])
+            sub = "eBay Kleinanzeigen: %d error(s) handling ad '%s' (profile '%s')" \
+                  % (logging.error.counter, ad['title'], config['glob_username'])
         else:
-            sub = "eBay Kleinanzeigen: Error handling profile '%s'" % (config['glob_username'])
+            sub = "eBay Kleinanzeigen: %d error(s) handling profile '%s'" \
+                  % (logging.error.counter, config['glob_username'])
 
         files = []
-        for file_screenshot in self.aScreenshots:
-            self.log.debug("Appending screenshot '%s'", file_screenshot)
-            files.append(file_screenshot)
+
         if self.sLogFileAbs:
             self.log.debug("Appending log '%s'", self.sLogFileAbs)
             files.append(self.sLogFileAbs)
+
+        for file_screenshot in self.aScreenshots:
+            self.log.debug("Appending screenshot '%s'", file_screenshot)
+            files.append(file_screenshot)
 
         if self.send_email_profile(config, sub, "See attached log file / screenshots.", files):
             self.cEmailSent += 1
@@ -756,7 +773,7 @@ class Kleinanzeigen:
             pass
 
         # Whether to skip this ad or not.
-        # Don't handle this as a fatal error (rc = False), to continue posting the other ads.
+        # Don't handle this as a fatal error, to continue posting the other ads.
         skip = False
 
         # Change category
@@ -774,30 +791,31 @@ class Kleinanzeigen:
                         driver.find_element_by_id('cat_' + cur_cat).click()
                         self.fake_wait()
                     except:
-                        self.log.warning("Category not existing (anymore); skipping")
+                        self.log.error("Category not existing (anymore); skipping")
                         skip = True
                 try:
                     driver.find_element_by_id('postad-step1-sbmt').submit()
                     self.fake_wait(randint(1000, 2000))
                 except:
-                    self.log.error("Category submit button not found, skipping")
+                    self.log.error("Category submit button not found")
                     return False # This is fatal though.
             else:
-                self.log.warning("Invalid category URL specified; skipping")
+                self.log.error("Invalid category URL specified; skipping")
                 skip = True
         else:
-            self.log.warning("No category specified; skipping")
+            self.log.error("No category URL specified for this ad; skipping")
             skip = True
 
         # Skipping an ad is not fatal to other ads.
         if skip:
+            self.log.error("Skipping ad due to configuration / page errors before")
             return True
 
         # Check if posting an ad is allowed / possible.
         if not self.post_ad_is_allowed(driver):
             # Try again in 2 days (48h).
             config['date_next_run'] = datetime.now() + timedelta(hours=48)
-            return False
+            return True # Skipping this profile is not a fatal error, so return True here.
 
         # Some categories needs this
         self.post_ad_mandatory_fields_set(driver, ad)
@@ -1087,8 +1105,6 @@ class Kleinanzeigen:
                                     "If you can read this, sending was successful!")
             sys.exit(0)
 
-        rc = True
-
         date_now = datetime.utcnow()
         driver   = None
 
@@ -1106,9 +1122,9 @@ class Kleinanzeigen:
                 handle_ads = False
 
         if handle_ads:
-            rc = self.handle_ads(profile_file, config)
+            self.handle_ads(profile_file, config)
 
-        if not rc:
+        if logging.error.counter:
             self.send_email_error(config)
 
         # Make sure to update the profile's data before terminating.
