@@ -88,9 +88,8 @@ class Kleinanzeigen:
             lambda self, obj: \
                 (obj.isoformat() if isinstance(obj, datetime) else None)
 
-        logging.error = CallCounted(logging.error)
-
         self.log = logging.getLogger(__name__)
+        self.log.error = CallCounted(logging.error)
         self.log.setLevel(logging.INFO)
 
         self.log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -210,10 +209,10 @@ class Kleinanzeigen:
 
         if ad:
             sub = "eBay Kleinanzeigen: %d error(s) handling ad '%s' (profile '%s')" \
-                  % (logging.error.counter, ad['title'], config['glob_username'])
+                  % (self.log.error.counter, ad['title'], config['glob_username'])
         else:
             sub = "eBay Kleinanzeigen: %d error(s) handling profile '%s'" \
-                  % (logging.error.counter, config['glob_username'])
+                  % (self.log.error.counter, config['glob_username'])
 
         files = []
 
@@ -1124,7 +1123,7 @@ class Kleinanzeigen:
         if handle_ads:
             self.handle_ads(profile_file, config)
 
-        if logging.error.counter:
+        if self.log.error.counter:
             self.send_email_error(config)
 
         # Make sure to update the profile's data before terminating.
