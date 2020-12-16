@@ -26,6 +26,16 @@
 	},
 	"mounts": ["source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"],
 
+	// https://stelligent.com/2020/05/29/development-acceleration-through-vs-code-remote-containers-how-we-leverage-vs-code-remote-containers-for-rapid-development-of-cfn_nag/
+	// ...:ro stands for read-only
+	"runArgs": [
+		// SSH
+		"-v", "${localEnv:HOME}/.ssh:/home/cfn_nag_dev/.ssh:ro",
+		// GPG
+		"-v", "${localEnv:HOME}/.gnupg/private-keys-v1.d:/home/cfn_nag_dev/.gnupg/private-keys-v1.d:ro",
+		"-v", "${localEnv:HOME}/.gnupg/pubring.kbx:/home/cfn_nag_dev/.gnupg/pubring.kbx:ro",
+		"-v", "${localEnv:HOME}/.gnupg/trustdb.gpg:/home/cfn_nag_dev/.gnupg/trustdb.gpg:ro"
+	],
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 
