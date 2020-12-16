@@ -3,7 +3,7 @@ FROM ubuntu:18.04
 RUN apt-get update
 
 RUN apt-get -y install wget bash zip rsync python3.6 python3-pip \ 
-    build-essential git
+    build-essential git vim
 RUN python3 -m pip install --upgrade pip==20.3.1
 
 # [Optional] If your pip requirements rarely change, uncomment this section to add them to the image.

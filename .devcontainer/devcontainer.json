@@ -30,11 +30,13 @@
 	// ...:ro stands for read-only
 	"runArgs": [
 		// SSH
-		"-v", "${localEnv:HOME}/.ssh:/home/cfn_nag_dev/.ssh:ro",
+		// TODO better to use ${remoteEnv:HOME}, does not work yet
+		"-v", "${localEnv:HOME}/.ssh:/home/container-dev/.ssh:ro",
 		// GPG
-		"-v", "${localEnv:HOME}/.gnupg/private-keys-v1.d:/home/cfn_nag_dev/.gnupg/private-keys-v1.d:ro",
-		"-v", "${localEnv:HOME}/.gnupg/pubring.kbx:/home/cfn_nag_dev/.gnupg/pubring.kbx:ro",
-		"-v", "${localEnv:HOME}/.gnupg/trustdb.gpg:/home/cfn_nag_dev/.gnupg/trustdb.gpg:ro"
+		// TODO this does not work yet
+		//"-v", "${localEnv:HOME}/.gnupg/private-keys-v1.d:/home/container-dev/.gnupg/private-keys-v1.d:ro",
+		//"-v", "${localEnv:HOME}/.gnupg/pubring.kbx:/home/container-dev/.gnupg/pubring.kbx:ro",
+		//"-v", "${localEnv:HOME}/.gnupg/trustdb.gpg:/home/container-dev/.gnupg/trustdb.gpg:ro"
 	],
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
