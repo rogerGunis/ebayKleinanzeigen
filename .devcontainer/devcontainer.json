@@ -21,9 +21,11 @@
 
 	// settings to run firefox inside of the docker container
 	// https://medium.com/better-programming/running-desktop-apps-in-docker-43a70a5265c4
+	// Ubuntu: do not forget to execute `xhosts +` on host (refer to above link for other OSs)
 	"containerEnv": {
 		"DISPLAY": "${localEnv:DISPLAY}"
 	},
+	// TODO works in Ubuntu. probably different if running under Windows/Mac OS
 	"mounts": ["source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"],
 
 	// https://stelligent.com/2020/05/29/development-acceleration-through-vs-code-remote-containers-how-we-leverage-vs-code-remote-containers-for-rapid-development-of-cfn_nag/
