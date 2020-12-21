@@ -258,6 +258,19 @@ class Kleinanzeigen:
             text = json.dumps(config, sort_keys=True, indent=4, ensure_ascii=False)
             fh_config.write(text)
 
+    def profile_can_run(self, config):
+        """
+        Returns whether the profile is able to run or not.
+        """
+        if config.get('date_next_run') is not None:
+            date_now = datetime.utcnow()
+            date_nextrun = dateutil.parser.parse(config['date_next_run'])
+            if date_now < date_nextrun:
+                self.log.info("Next run for this profile scheduled for %d/%d/%d, skipping", \
+                                date_nextrun.year, date_nextrun.month, date_nextrun.day)
+                return False
+        return True
+
     def login_has_captcha(self, driver):
         """
         Returns if the login page has a Captcha or not.
@@ -941,6 +954,10 @@ class Kleinanzeigen:
                 if not rc:
                     break
 
+                # Was the profile postponed from a former run?
+                if not self.profile_can_run(config):
+                    break
+
                 self.log.info("Waiting for handling next ad ...")
                 self.reset()
                 self.fake_wait(randint(12222, 17777))
@@ -1104,23 +1121,13 @@ class Kleinanzeigen:
                                     "If you can read this, sending was successful!")
             sys.exit(0)
 
-        date_now = datetime.utcnow()
-        driver   = None
+        driver = None
 
         if config.get('session_id') is not None:
             driver = self.session_attach(config)
 
-        handle_ads = True
-
         # Is this profile postponed to run at some later point in time?
-        if config.get('date_next_run') is not None:
-            date_nextrun = dateutil.parser.parse(config['date_next_run'])
-            if date_now < date_nextrun:
-                self.log.info("Next run for this profile scheduled for %d/%d/%d, skipping", \
-                              date_nextrun.year, date_nextrun.month, date_nextrun.day)
-                handle_ads = False
-
-        if handle_ads:
+        if self.profile_can_run(config):
             self.handle_ads(profile_file, config)
 
         if self.log.error.counter:
