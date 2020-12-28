@@ -926,6 +926,7 @@ class Kleinanzeigen:
                 if driver is None:
                     driver = self.session_create(config)
                     if driver is None:
+                        rc = False
                         break
 
                 self.profile_write(profile_file, config)
@@ -974,43 +975,47 @@ class Kleinanzeigen:
         self.log.info("Creating session")
 
         # For now use the Chrome driver, as Firefox doesn't work (empy page)
+        driver      = None
         use_firefox = False
 
-        if use_firefox:
-            ff_options = FirefoxOptions()
-            if self.fInteractive:
-                ff_options.add_argument("--headless")
-            if config.get('webdriver_enabled', False) is False:
-                ff_options.set_preference("dom.webdriver.enabled", False)
-            ff_profile = webdriver.FirefoxProfile()
-            ff_profile.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1")
-            driver = webdriver.Firefox(firefox_profile=ff_profile, firefox_options=ff_options)
-        else:
-            # See: https://chromium.googlesource.com/chromium/src/+/master/chrome/common/chrome_switches.cc
-            #      https://chromium.googlesource.com/chromium/src/+/master/chrome/common/pref_names.cc
-            cr_options = ChromeOptions()
-            cr_options.add_argument("--no-sandbox")
-            cr_options.add_argument("--disable-setuid-sandbox")
-            cr_options.add_argument("--disable-blink-features")
-            cr_options.add_argument("--disable-blink-features=AutomationControlled")
-            if self.fHeadless:
-                cr_options.add_argument("--headless")
-                cr_options.add_argument("--disable-extensions")
-                cr_options.add_argument("--disable-gpu")
-                cr_options.add_argument("--disable-dev-shm-usage")
-                cr_options.add_argument("--start-maximized")
-            cr_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36")
-            cr_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-            cr_options.add_experimental_option('useAutomationExtension', False)
+        try:
 
-            driver = webdriver.Chrome(options=cr_options)
+            if use_firefox:
+                ff_options = FirefoxOptions()
+                if self.fInteractive:
+                    ff_options.add_argument("--headless")
+                if config.get('webdriver_enabled', False) is False:
+                    ff_options.set_preference("dom.webdriver.enabled", False)
+                ff_profile = webdriver.FirefoxProfile()
+                ff_profile.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 5.1; rv:7.0.1) Gecko/20100101 Firefox/7.0.1")
 
-        if driver:
+                driver = webdriver.Firefox(firefox_profile=ff_profile, firefox_options=ff_options)
+            else:
+                # See: https://chromium.googlesource.com/chromium/src/+/master/chrome/common/chrome_switches.cc
+                #      https://chromium.googlesource.com/chromium/src/+/master/chrome/common/pref_names.cc
+                cr_options = ChromeOptions()
+                cr_options.add_argument("--no-sandbox")
+                cr_options.add_argument("--disable-setuid-sandbox")
+                cr_options.add_argument("--disable-blink-features")
+                cr_options.add_argument("--disable-blink-features=AutomationControlled")
+                if self.fHeadless:
+                    cr_options.add_argument("--headless")
+                    cr_options.add_argument("--disable-extensions")
+                    cr_options.add_argument("--disable-gpu")
+                    cr_options.add_argument("--disable-dev-shm-usage")
+                    cr_options.add_argument("--start-maximized")
+                cr_options.add_argument("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36")
+                cr_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+                cr_options.add_experimental_option('useAutomationExtension', False)
+
+                driver = webdriver.Chrome(options=cr_options)
+
             self.log.info("New driver session is: %s %s", driver.session_id, driver.command_executor._url)
 
             config['session_id'] = driver.session_id
             config['session_url'] = driver.command_executor._url
-        else:
+
+        except:
             self.log.error("Creating driver session failed!")
 
         return driver
