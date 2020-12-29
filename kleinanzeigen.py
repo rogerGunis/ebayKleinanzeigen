@@ -826,7 +826,7 @@ class Kleinanzeigen:
         # Check if posting an ad is allowed / possible.
         if not self.post_ad_is_allowed(driver):
             # Try again in 2 days (48h).
-            config['date_next_run'] = str(datetime.now() + timedelta(hours=48))
+            config['date_next_run'] = str(datetime.now() + timedelta(hours=48)
             return True # Skipping this profile is not a fatal error, so return True here.
 
         # Some categories needs this
@@ -891,7 +891,6 @@ class Kleinanzeigen:
             self.post_ad_sanitize(cur_ad)
 
             if "date_updated" in cur_ad:
-                date_lastupdated = cur_ad["date_updated"]
             else:
                 date_lastupdated = date_now
             date_diff            = date_now - date_lastupdated
