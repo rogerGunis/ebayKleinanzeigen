@@ -724,7 +724,7 @@ class Kleinanzeigen:
             self.log.info("Ad ID is: %s", adId)
             if "id" not in ad:
                 self.log.info("Set ID: %s", adId)
-                ad["date_published"] = datetime.utcnow()
+                ad["date_published"] = str(datetime.utcnow())
 
             if adId is not None:
                 ad["id"] = adId
@@ -733,7 +733,7 @@ class Kleinanzeigen:
 
         # Make sure to update the updated timestamp, even if we weren't able
         # to find the (new) ad ID.
-        ad["date_updated"] = datetime.utcnow()
+        ad["date_updated"] = str(datetime.utcnow())
 
         self.log.info("Ad successfully submitted")
         return True
@@ -751,7 +751,7 @@ class Kleinanzeigen:
             date_pub = dateutil.parser.parse(ad["date_published"])
             if date_pub > date_now:
                 date_pub = date_now
-            ad["date_published"] = date_pub
+            ad["date_published"] = str(date_pub)
         if "date_updated" in ad:
             date_updated = dateutil.parser.parse(ad["date_updated"])
             if date_updated > date_now:
@@ -760,7 +760,7 @@ class Kleinanzeigen:
                 date_pub = date_updated
             if date_updated > date_pub:
                 date_updated = date_pub
-            ad["date_updated"] = date_updated
+            ad["date_updated"] = str(date_updated)
 
     def post_ad(self, driver, config, ad):
         """
@@ -826,7 +826,7 @@ class Kleinanzeigen:
         # Check if posting an ad is allowed / possible.
         if not self.post_ad_is_allowed(driver):
             # Try again in 2 days (48h).
-            config['date_next_run'] = datetime.now() + timedelta(hours=48)
+            config['date_next_run'] = str(datetime.now() + timedelta(hours=48))
             return True # Skipping this profile is not a fatal error, so return True here.
 
         # Some categories needs this
