@@ -364,9 +364,9 @@ class Kleinanzeigen:
         self.logout(driver)
         self.fake_wait(7777)
         if self.session_destroy(driver):
-        driver = self.session_create(config)
-        if driver:
-            return self.login(driver, config)
+            driver = self.session_create(config)
+            if driver:
+                return self.login(driver, config)
         return False
 
     def fake_wait(self, ms_sleep=None):
