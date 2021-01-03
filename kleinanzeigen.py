@@ -178,7 +178,7 @@ class Kleinanzeigen:
                     msg.attach(part)
                     fh.close()
                 except:
-                    self.log.error("Attaching file '%s' failed", cur_file)
+                    self.log.exception("Attaching file '%s' failed", cur_file)
 
         server = smtplib.SMTP(email_server_addr, email_server_port)
         server.ehlo_or_helo_if_needed()
@@ -1016,7 +1016,7 @@ class Kleinanzeigen:
             config['session_url'] = driver.command_executor._url
 
         except:
-            self.log.error("Creating driver session failed!")
+            self.log.exception("Creating driver session failed!")
 
         return driver
 
