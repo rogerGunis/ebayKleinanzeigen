@@ -89,7 +89,7 @@ class Kleinanzeigen:
                 (obj.isoformat() if isinstance(obj, datetime) else None)
 
         self.log = logging.getLogger(__name__)
-        self.log.error = CallCounted(logging.error)
+        self.log.error = CallCounted(self.log.error)
         self.log.setLevel(logging.INFO)
 
         self.log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
