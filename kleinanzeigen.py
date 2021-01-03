@@ -880,6 +880,8 @@ class Kleinanzeigen:
         """
         rc = True
 
+        driver = None
+
         date_now = datetime.utcnow()
 
         needs_login = True
