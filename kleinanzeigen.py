@@ -363,7 +363,11 @@ class Kleinanzeigen:
         self.log.info("Performing re-login ...")
         self.logout(driver)
         self.fake_wait(7777)
-        return self.login(driver, config)
+        if self.session_destroy(driver):
+        driver = self.session_create(config)
+        if driver:
+            return self.login(driver, config)
+        return False
 
     def fake_wait(self, ms_sleep=None):
         """
@@ -874,8 +878,6 @@ class Kleinanzeigen:
         """
         Main function to handle the ads of a profile.
         """
-        driver = None
-
         rc = True
 
         date_now = datetime.utcnow()
@@ -924,10 +926,14 @@ class Kleinanzeigen:
             if needs_update:
 
                 if driver is None:
-                    driver = self.session_create(config)
+                    if config.get('session_id') is not None:
+                        driver = self.session_attach(config)
+
                     if driver is None:
-                        rc = False
-                        break
+                        driver = self.session_create(config)
+                        if driver is None:
+                            rc = False
+                            break
 
                 self.profile_write(profile_file, config)
 
@@ -962,6 +968,11 @@ class Kleinanzeigen:
                 self.log.info("Waiting for handling next ad ...")
                 self.reset()
                 self.fake_wait(randint(12222, 17777))
+
+        if driver:
+            self.logout(driver)
+            self.session_destroy(driver)
+            driver = None
 
         if not rc:
             self.send_email_error(config)
@@ -1019,6 +1030,22 @@ class Kleinanzeigen:
             self.log.exception("Creating driver session failed!")
 
         return driver
+
+    def session_destroy(self, driver):
+        """
+        Destroys an existing browser / webdriver session.
+        """
+        if driver is None:
+            return True
+
+        self.log.info("Destroying session")
+
+        try:
+            driver.quit()
+            return True
+        except:
+            self.log.exception("Destroying driver session failed!")
+        return False
 
     def session_attach(self, config):
         """
@@ -1126,11 +1153,6 @@ class Kleinanzeigen:
                                     "If you can read this, sending was successful!")
             sys.exit(0)
 
-        driver = None
-
-        if config.get('session_id') is not None:
-            driver = self.session_attach(config)
-
         # Is this profile postponed to run at some later point in time?
         if self.profile_can_run(config):
             self.handle_ads(profile_file, config)
@@ -1140,8 +1162,6 @@ class Kleinanzeigen:
 
         # Make sure to update the profile's data before terminating.
         self.profile_write(profile_file, config)
-
-        self.logout(driver)
 
         self.log.info("Script done")
         self.cleanup()
