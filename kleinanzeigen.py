@@ -395,6 +395,9 @@ if __name__ == '__main__':
     for o, a in aOpts:
         if o in "--profile":
             sProfile = a
+        if o in "--help":
+            print("Usage:")
+            print("    --profile=<profile>")
 
     if not sProfile:
         print("No profile specified")

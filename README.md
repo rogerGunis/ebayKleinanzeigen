@@ -15,4 +15,3 @@
 - Ability to selectively enable / disable ads being published / updated
 - Selects category and fills the form data
 - Uploads multiple photos
-

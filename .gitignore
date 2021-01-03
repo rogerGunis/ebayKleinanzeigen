@@ -56,7 +56,7 @@ docs/_build/
 # PyBuilder
 target/
 
-config.json
+config_*.json
 *.jpg
 .idea
 .DS_Store
