@@ -9,24 +9,25 @@ Updated and improved by x86dev Dec 2017.
 
 @author: Leo; Eduardo; x86dev
 """
-import json
 import getopt
+import json
+import logging
 import os
 import signal
 import sys
 import time
 import urllib.parse
+from datetime import datetime
+from platform import python_version_tuple
 from random import randint
+
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import NoSuchElementException
-import logging
-from datetime import datetime
-from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import Select, WebDriverWait
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -60,10 +61,10 @@ def login(config):
     log.info("Login with account email: " + input_email)
     driver.get('https://www.ebay-kleinanzeigen.de/m-einloggen.html')
 
+    # wait for the 'accept cookie' banner to appear
     WebDriverWait(driver, 6).until(EC.element_to_be_clickable((By.ID, 'gdpr-banner-accept'))).click()
 
-    text_area = WebDriverWait(driver, 1)\
-        .until(EC.presence_of_element_located((By.ID, 'login-email')))
+    text_area = WebDriverWait(driver, 1).until(EC.presence_of_element_located((By.ID, 'login-email')))
     text_area.send_keys(input_email)
     fake_wait(200)
 
@@ -95,18 +96,18 @@ def delete_ad(driver, ad):
     if "id" in ad:
         try:
             ad_id_elem = driver.find_element_by_xpath("//a[@data-adid='%s']" % ad["id"])
-        except NoSuchElementException as e:
+        except NoSuchElementException:
             log.info("\tNot found by ID")
 
     if ad_id_elem is None:
         try:
             ad_id_elem = driver.find_element_by_xpath("//a[contains(text(), '%s')]/../../../../.." % ad["title"])
-        except NoSuchElementException as e:
+        except NoSuchElementException:
             log.info("\tNot found by title")
 
     if ad_id_elem is not None:
         try:
-            btn_del = ad_id_elem.find_element_by_class_name("managead-listitem-action-delete")
+            btn_del = ad_id_elem.find_elements_by_class_name("managead-listitem-action-delete")[1]
             btn_del.click()
 
             fake_wait()
@@ -118,8 +119,7 @@ def delete_ad(driver, ad):
             fake_wait(randint(2000, 3000))
             webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
             return True
-
-        except NoSuchElementException as e:
+        except NoSuchElementException:
             log.info("\tDelete button not found")
     else:
         log.info("\tAd does not exist (anymore)")
@@ -195,14 +195,21 @@ def post_ad(driver, ad, interactive):
         ad["price_type"] = 'NEGOTIABLE'
 
     # Navigate to page
-    driver.get(ad["caturl"])
+    driver.get('https://www.ebay-kleinanzeigen.de/p-anzeige-aufgeben.html')
     fake_wait(randint(2000, 3500))
 
-    # Select category
-    submit_button = driver.find_element_by_css_selector("#postad-step1-sbmt button")
-
-    submit_button.click()
-    fake_wait(randint(1000, 3000))
+    category_selected = False
+    try:
+      driver.find_element_by_id('pstad-lnk-chngeCtgry')
+      log.info("Using new layout")
+    except:
+      log.info("Using old layout")
+      # legacy handling for old page layout where you have to first select the category (currently old and new layout are served randomly)
+      driver.get(ad["caturl"].replace('p-kategorie-aendern', 'p-anzeige-aufgeben'))
+      fake_wait(300)
+      driver.find_element_by_css_selector("#postad-step1-sbmt button").click()
+      fake_wait(300)
+      category_selected = True
 
     # Check if posting an ad is allowed / possible
     fRc = post_ad_is_allowed(driver)
@@ -210,14 +217,60 @@ def post_ad(driver, ad, interactive):
         return fRc
 
     # Fill form
-    text_area = driver.find_element_by_id('postad-title')
-    text_area.send_keys(ad["title"])
-    fake_wait()
+    title_input = driver.find_element_by_id('postad-title')
+    title_input.click()
+    title_input.send_keys(ad["title"])
+    driver.find_element_by_id('pstad-descrptn').click() # click description textarea to lose focus from title field which will trigger category auto detection
+    if not category_selected:
+      # wait for category auto detection
+      try:
+        WebDriverWait(driver, 3).until(lambda driver: driver.find_element_by_id('postad-category-path').text.strip() != '')
+        category_selected = True
+      except:
+        pass
+      # Change category if present in config (otherwise keep auto detected category from eBay Kleinanzeigen)
+      cat_override = ad["caturl"]
+      if cat_override:
+        cat_override = cat_override.replace('p-anzeige-aufgeben', 'p-kategorie-aendern') # replace old links for backwards compatibility
+        driver.find_element_by_id('pstad-lnk-chngeCtgry').click()
+        WebDriverWait(driver, 3).until(EC.presence_of_element_located((By.ID, 'postad-step1-sbmt')))
+        driver.get(cat_override)
+        fake_wait()
+        driver.find_element_by_id('postad-step1-sbmt').submit()
+        fake_wait()
+        category_selected = True
+      if not category_selected:
+        raise Exception('No category configured for this ad and auto detection failed, cannot publish')
 
-    text_area = driver.find_element_by_id('pstad-descrptn')
-    desc = config['glob_ad_prefix'] + ad["desc"] + config['glob_ad_suffix']
-    desc_list = [x.strip('\\n') for x in desc.split('\\n')]
-    for p in desc_list:
+    # add additional category fields
+    additional_category_options = ad.get("additional_category_options", {})
+    for element_id, value in additional_category_options.items():
+        try:
+            select_element = driver.find_element_by_css_selector(
+                'select[id$="{}"]'.format(element_id)
+            )
+            Select(select_element).select_by_visible_text(value)
+        except NoSuchElementException:
+            pass
+
+
+    text_area = driver.find_element_by_id("pstad-descrptn")
+    ad_suffix = config.get("glob_ad_suffix", "")
+    ad_prefix = config.get("glob_ad_prefix", "")
+
+    if ad.get("description_file", None) is not None:
+        description_file = ad.get("description_file")
+        with open(description_file, "r") as f:
+            description_lines = f.readlines()
+    else:
+        desc = ad.get("desc")
+        description_lines = desc.split("\\n")
+
+    description_lines = [x.strip("\\n") for x in description_lines]
+    description_lines.append(ad_suffix)
+    description_lines.insert(0, ad_prefix)
+
+    for p in description_lines:
         text_area.send_keys(p)
         text_area.send_keys(Keys.RETURN)
 
@@ -226,12 +279,12 @@ def post_ad(driver, ad, interactive):
     if (ad['shipping_type']) != 'NONE':
         try:
             select_element = driver.find_element_by_css_selector('select[id$=".versand_s"]')
-            shippment_select = Select(select_element)
+            shipment_select = Select(select_element)
             log.debug("\t shipping select found with id: %s" % select_element.get_attribute('id'))
             if (ad['shipping_type']) == 'PICKUP':
-                shippment_select.select_by_visible_text("Nur Abholung")
+                shipment_select.select_by_visible_text("Nur Abholung")
             if (ad['shipping_type']) == 'SHIPPING':
-                shippment_select.select_by_visible_text("Versand möglich")
+                shipment_select.select_by_visible_text("Versand möglich")
             fake_wait()
         except NoSuchElementException:
             pass
@@ -245,7 +298,10 @@ def post_ad(driver, ad, interactive):
 
     text_area = driver.find_element_by_id('pstad-zip')
     text_area.clear()
-    text_area.send_keys(config["glob_zip"])
+    if ad.get("zip", None) is not None:
+        text_area.send_keys(ad["zip"])
+    else:
+        text_area.send_keys(config["glob_zip"])
     fake_wait()
 
     if config["glob_phone_number"]:
@@ -281,7 +337,7 @@ def post_ad(driver, ad, interactive):
                     total_upload_time += 0.5
 
                 if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
-                    log.warning("\Could not upload image: %s within %s seconds" % (path_abs, total_upload_time))
+                    log.warning("\tCould not upload image: %s within %s seconds" % (path_abs, total_upload_time))
                 else:
                     log.debug("\tUploaded file in %s seconds" % total_upload_time)
         except NoSuchElementException:
@@ -292,10 +348,10 @@ def post_ad(driver, ad, interactive):
         try:
             fileup = driver.find_element_by_xpath("//input[@type='file']")
             path = ad["photo_dir"]
-            path_abs = config["glob_photo_path"] + path
+            path_abs = os.path.join(config["glob_photo_path"], path)
             if not path_abs.endswith("/"):
                 path_abs += "/"
-            for filename in os.listdir(path_abs):
+            for filename in sorted(os.listdir(path_abs)):
                 if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
                     continue
                 file_path_abs = path_abs + filename
@@ -309,11 +365,11 @@ def post_ad(driver, ad, interactive):
                     total_upload_time += 0.5
                 
                 if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
-                    log.warning("\Could not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
+                    log.warning("\tCould not upload image: %s within %s seconds" % (file_path_abs, total_upload_time))
                 else:
                     log.debug("\tUploaded file in %s seconds" % total_upload_time)
-        except NoSuchElementException:
-            pass
+        except NoSuchElementException as e:
+            log.error(e)
 
     fake_wait()
 
@@ -364,9 +420,14 @@ def session_create(config):
     log.info("Creating session")
 
     options = Options()
+
     if config.get('headless', False) is True:
         log.info("Headless mode")
         options.add_argument("--headless")
+
+    if config.get('webdriver_enabled') is False:
+        options.set_preference("dom.webdriver.enabled", False)
+
     driver = webdriver.Firefox(options=options)
 
     log.info("New session is: %s %s" % (driver.session_id, driver.command_executor._url))
@@ -410,8 +471,10 @@ if __name__ == '__main__':
 
     profile_read(sProfile, config)
 
-    if config.get('headless') is None:
-        config['headless'] = False
+    if config.get("headless") is None:
+        config["headless"] = False
+
+    updateInterval = config.get("update_interval", 4)
 
     fForceUpdate = False
     fDoLogin = True
@@ -422,6 +485,8 @@ if __name__ == '__main__':
     profile_write(sProfile, config)
     login(config)
     fake_wait(randint(1000, 4000))
+    for ad in config['ads']:
+        assert len(ad["title"]) > 9, "eBay restriction: Title must be at least 10 chars long"
 
     for ad in config["ads"]:
 
@@ -430,16 +495,21 @@ if __name__ == '__main__':
         log.info("Handling '%s'" % ad["title"])
 
         if "date_updated" in ad:
+            # python < 3.7 do not support datetime.datetime_fromisoformat()
+            # https://stackoverflow.com/a/60852111/256002
+            if int(python_version_tuple()[1]) < 7:
+                from backports.datetime_fromisoformat import MonkeyPatch
+                MonkeyPatch.patch_fromisoformat()
+
             dtLastUpdated = datetime.fromisoformat(ad["date_updated"])
         else:
             dtLastUpdated = dtNow
         dtDiff = dtNow - dtLastUpdated
 
-        if "enabled" in ad \
-                and ad["enabled"] == "1":
+        if "enabled" in ad and ad["enabled"] == "1":
             if "date_published" in ad:
                 log.info("\tAlready published (%d days ago)" % dtDiff.days)
-                if dtDiff.days > 4:
+                if dtDiff.days > updateInterval:
                     fNeedsUpdate = True
             else:
                 log.info("\tNot published yet")
