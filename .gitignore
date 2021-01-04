@@ -65,3 +65,4 @@ config_*.json
 .history
 # pictures for the ads
 data
+config.json
