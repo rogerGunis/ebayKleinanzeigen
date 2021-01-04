@@ -1,0 +1,56 @@
+{
+	
+	"name": "ebayKleinanzeigen Dockerfile",
+
+	// Sets the run context to one level up instead of the .devcontainer folder.
+	"context": "..",
+
+	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+	"dockerFile": "../Dockerfile",
+
+	// Set *default* container specific settings.json values on container create.
+	"settings": { 
+		"terminal.integrated.shell.linux": null
+	},
+
+	// Add the IDs of extensions you want installed when the container is created.
+	"extensions": [
+		"ms-python.python",
+		"ms-python.vscode-pylance"
+	],
+
+	// settings to run firefox inside of the docker container
+	// https://medium.com/better-programming/running-desktop-apps-in-docker-43a70a5265c4
+	// Ubuntu: do not forget to execute `xhosts +` on host (refer to above link for other OSs)
+	"containerEnv": {
+		"DISPLAY": "${localEnv:DISPLAY}"
+	},
+	// TODO works in Ubuntu. probably different if running under Windows/Mac OS
+	"mounts": ["source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind"],
+
+	// https://stelligent.com/2020/05/29/development-acceleration-through-vs-code-remote-containers-how-we-leverage-vs-code-remote-containers-for-rapid-development-of-cfn_nag/
+	// ...:ro stands for read-only
+	"runArgs": [
+		// SSH
+		// TODO better to use ${remoteEnv:HOME}, does not work yet
+		"-v", "${localEnv:HOME}/.ssh:/home/container-dev/.ssh:ro",
+		// GPG
+		// TODO this does not work yet
+		//"-v", "${localEnv:HOME}/.gnupg/private-keys-v1.d:/home/container-dev/.gnupg/private-keys-v1.d:ro",
+		//"-v", "${localEnv:HOME}/.gnupg/pubring.kbx:/home/container-dev/.gnupg/pubring.kbx:ro",
+		//"-v", "${localEnv:HOME}/.gnupg/trustdb.gpg:/home/container-dev/.gnupg/trustdb.gpg:ro"
+	],
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Uncomment the next line to run commands after the container is created - for example installing curl.
+	// "postCreateCommand": "apt-get update && apt-get install -y curl",
+
+	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
+	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+
+	// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
+	// "mounts": [ "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" ],
+	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
+	// "remoteUser": "vscode"
+}
