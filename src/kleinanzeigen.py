@@ -29,6 +29,8 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+from selenium.webdriver import DesiredCapabilities
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -429,7 +431,20 @@ def session_create(config):
     if config.get('webdriver_enabled') is False:
         options.set_preference("dom.webdriver.enabled", False)
 
-    driver = webdriver.Firefox(options=options, service_log_path=path.join("..", "data","geckodriver.log"))
+    # selenium_profile = webdriver.FirefoxProfile('/home/container-dev/.mozilla/firefox/')
+    # selenium_profile.update_preferences()
+    # options.add_argument("-profile")
+    # options.add_argument("/tmp/ff1")
+    # driver = webdriver.Firefox(options=options, service_log_path=path.join("..", "data","geckodriver.log"))
+    # driver = webdriver.Chrome()
+
+    profile = FirefoxProfile()
+    profile.set_preference("dom.webdriver.enabled", False)
+    profile.set_preference('useAutomationExtension', False)
+    profile.update_preferences()
+    desired = DesiredCapabilities.FIREFOX
+
+    driver = webdriver.Firefox(options=options, firefox_profile=profile, desired_capabilities=desired)
 
     log.info("New session is: %s %s" % (driver.session_id, driver.command_executor._url))
 
