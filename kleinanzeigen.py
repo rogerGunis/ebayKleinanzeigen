@@ -627,6 +627,9 @@ class Kleinanzeigen:
         Uploads a single image (picture) of an ad.
         """
         _ = ad
+        if not os.path.exists(file_path_abs):
+            self.log.error("Image '%s' does not exist, skipping upload", file_path_abs)
+            return
         try:
             fileup = driver.find_element_by_xpath("//input[@type='file']")
             uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
