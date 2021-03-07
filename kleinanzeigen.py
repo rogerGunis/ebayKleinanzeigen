@@ -588,7 +588,7 @@ class Kleinanzeigen:
                         if "field_" + for_id_raw in ad:
                             value = ad["field_" + for_id_raw]
                         else:
-                            self.log.warning("No value for text field '%s' defined, setting to empty value", for_id_raw)
+                            self.log.debug("No value for text field '%s' defined, setting to empty value", for_id_raw)
                             value = 'Nicht angegeben'
                         try:
                             driver.find_element_by_id(for_id).send_keys(value)
