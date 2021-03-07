@@ -507,7 +507,7 @@ class Kleinanzeigen:
         except NoSuchElementException:
             pass
 
-        self.log.info("Captcha: %s", rc)
+        self.log.debug("Captcha: %s", rc)
 
         return rc
 
@@ -986,7 +986,7 @@ class Kleinanzeigen:
             self.session_destroy(driver)
             driver = None
 
-        if not rc:
+        if self.log.error.counter:
             self.send_email_error(config)
 
         return rc
