@@ -632,16 +632,17 @@ class Kleinanzeigen:
             return
         try:
             fileup = driver.find_element_by_xpath("//input[@type='file']")
-            uploaded_count = len(driver.find_elements_by_class_name("imagebox-thumbnail"))
+            class_name_thumbnail = "imagebox-new-thumbnail"
+            uploaded_count = len(driver.find_elements_by_class_name(class_name_thumbnail))
             self.log.info("Uploading image: %s", file_path_abs)
             fileup.send_keys(os.path.abspath(file_path_abs))
             total_upload_time = 0
-            while uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")) and \
+            while uploaded_count == len(driver.find_elements_by_class_name(class_name_thumbnail)) and \
                     total_upload_time < 30:
                 self.fake_wait(1000)
                 total_upload_time += 1
 
-            if uploaded_count == len(driver.find_elements_by_class_name("imagebox-thumbnail")):
+            if uploaded_count == len(driver.find_elements_by_class_name(class_name_thumbnail)):
                 self.log.warning("Could not upload image: %s within %s seconds", file_path_abs, total_upload_time)
             else:
                 self.log.debug("Uploaded file in %s seconds", total_upload_time)
