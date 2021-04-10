@@ -750,11 +750,11 @@ class Kleinanzeigen:
         Sanitizes ad config values if necessary.
         """
 
-        # Limit title to 65 characters.
+        # Limit title to 65 (N-1) characters.
         # Otherwise other operations might not work wrt finding / comparing titles.
         ad_title         = ad["title"]
         ad_title_max_len = 65
-        ad_title         = (ad_title[:ad_title_max_len]) if len(ad_title) > ad_title_max_len else ad_title
+        ad_title         = (ad_title[:ad_title_max_len - 1]) if len(ad_title) > ad_title_max_len else ad_title
         ad["title"]      = ad_title
 
         if ad["price_type"] not in ['FIXED', 'NEGOTIABLE', 'GIVE_AWAY']:
