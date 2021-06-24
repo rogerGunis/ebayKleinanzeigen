@@ -441,12 +441,23 @@ class Kleinanzeigen:
                     btn_del = ad_id_elem.find_element_by_class_name("managead-listitem-action-delete")
                     btn_del.click()
 
+                    self.fake_wait(randint(2000, 3000))
+
+                    try:
+                        driver.find_element_by_id("DeleteWithoutReason").click()
+                    except NoSuchElementException:
+                        self.log.error("Delete reason button not found")
+                        rc = False
+                        break
+
                     self.fake_wait()
 
                     try:
-                        driver.find_element_by_id("modal-bulk-delete-ad-sbmt").click()
+                        driver.find_element_by_id("sold-celebration-sbmt").click()
                     except:
-                        driver.find_element_by_id("modal-bulk-mark-ad-sold-sbmt").click()
+                        self.log.error("Delete submit button not found")
+                        rc = False
+                        break
 
                     self.log.info("Ad deleted")
 
@@ -454,7 +465,7 @@ class Kleinanzeigen:
                     webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
                 except NoSuchElementException:
-                    self.log.error("Delete button not found")
+                    self.log.error("Delete action button not found")
                     rc = False
                     break
             else:
